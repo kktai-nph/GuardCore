@@ -6,7 +6,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,7 +24,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +63,7 @@ class ParentMainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF0F172A) // Sleek Dark Slate
+                    color = Color(0xFF070B12) // Deep Cyber Obsidian Void
                 ) {
                     ParentDashboardScreen(
                         context = this,
@@ -93,7 +103,6 @@ fun ParentDashboardScreen(
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showAddScheduleDialog by remember { mutableStateOf(false) }
     var showAddAppLimitDialog by remember { mutableStateOf(false) }
-    var showSendChildUpdateDialog by remember { mutableStateOf(false) }
     var showLockDurationDialog by remember { mutableStateOf(false) }
     var showUpdatePopupDialog by remember { mutableStateOf(false) }
     var isSending by remember { mutableStateOf(false) }
@@ -107,10 +116,32 @@ fun ParentDashboardScreen(
 
     val engine = remember { ParentEngineHolder.getEngine(context) }
 
+    // Pulsing Animation for Hero Status
+    val infiniteTransition = rememberInfiniteTransition(label = "sentinelPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
+    val radarRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radarRotation"
+    )
+
     fun sendCommand(actionJson: String, actionName: String) {
         val child = selectedChild
         if (child == null) {
-            Toast.makeText(context, "Please pair with a child device first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, strings.noChildPaired, Toast.LENGTH_SHORT).show()
             return
         }
         if (botToken.isBlank() || chatId.isBlank()) {
@@ -123,7 +154,6 @@ fun ParentDashboardScreen(
         coroutineScope.launch {
             val nowEpoch = System.currentTimeMillis() / 1000
             try {
-                // Encrypt command using Child's X25519 PubKey
                 val wireMsg = engine?.createEncryptedCommandMessage(
                     child.deviceId,
                     actionJson,
@@ -146,34 +176,55 @@ fun ParentDashboardScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0F172A),
+        containerColor = Color(0xFF070B12),
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF1E293B)),
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF0284C7), Color(0xFF0369A1))
+                                    )
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(20.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text(strings.appTitleParent, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
-                            Text(strings.appSubtitleParent, fontSize = 11.sp, color = Color(0xFF94A3B8))
+                            Text(
+                                text = strings.appTitleParent,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF10B981))
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = strings.appSubtitleParent,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
                         }
                     }
                 },
                 actions = {
-                    // Language Switcher Slider / Toggle
                     LanguageSlider(
                         currentLanguage = currentLang,
                         onLanguageChange = { newLang ->
@@ -181,14 +232,12 @@ fun ParentDashboardScreen(
                             LanguageManager.setSavedLanguage(context, newLang)
                         }
                     )
-
                     Spacer(modifier = Modifier.width(6.dp))
-
                     IconButton(onClick = { showSettingsDialog = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF94A3B8))
+                        Icon(Icons.Default.Tune, contentDescription = "Settings", tint = Color(0xFF38BDF8))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0B1322))
             )
         }
     ) { padding ->
@@ -196,28 +245,148 @@ fun ParentDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Target Device Hub
+            // 1. Creative Animated Cyber Sentinel Radar & Integrity HUD
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0D172A)),
+                border = BorderStroke(
+                    1.dp,
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF0284C7).copy(alpha = 0.6f),
+                            Color(0xFF38BDF8).copy(alpha = 0.2f),
+                            Color(0xFF0284C7).copy(alpha = 0.6f)
+                        )
+                    )
+                )
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Radar Animation Box
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .scale(pulseScale),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val center = Offset(size.width / 2, size.height / 2)
+                            val radius = size.minDimension / 2
+
+                            // Outer Circle
+                            drawCircle(
+                                color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                                radius = radius,
+                                style = Stroke(width = 2.dp.toPx())
+                            )
+                            // Mid Circle
+                            drawCircle(
+                                color = Color(0xFF0284C7).copy(alpha = 0.35f),
+                                radius = radius * 0.7f,
+                                style = Stroke(width = 1.5.dp.toPx())
+                            )
+                            // Inner Glow Circle
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    listOf(Color(0xFF0284C7).copy(alpha = 0.4f), Color.Transparent)
+                                ),
+                                radius = radius * 0.5f
+                            )
+
+                            // Rotating Radar Sweep Line
+                            val sweepAngleRad = Math.toRadians(radarRotation.toDouble())
+                            val endX = center.x + (radius * Math.cos(sweepAngleRad)).toFloat()
+                            val endY = center.y + (radius * Math.sin(sweepAngleRad)).toFloat()
+
+                            drawLine(
+                                brush = Brush.linearGradient(
+                                    listOf(Color(0xFF38BDF8), Color.Transparent),
+                                    start = center,
+                                    end = Offset(endX, endY)
+                                ),
+                                start = center,
+                                end = Offset(endX, endY),
+                                strokeWidth = 3.dp.toPx(),
+                                cap = StrokeCap.Round
+                            )
+                        }
+
+                        // Central Shield Icon
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(Color(0xFF0284C7), Color(0xFF0369A1))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Security,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = strings.systemIntegrity,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF38BDF8),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Futuristic Telemetry Badges Strip
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        TelemetryBadge(label = "ChaCha20-Poly1305", icon = Icons.Default.Lock, color = Color(0xFF38BDF8))
+                        TelemetryBadge(label = "Zero-Trust Mesh", icon = Icons.Default.Hub, color = Color(0xFF10B981))
+                        TelemetryBadge(label = "Telegram Relay", icon = Icons.Default.CloudQueue, color = Color(0xFFA78BFA))
+                    }
+                }
+            }
+
+            // 2. Creative Managed Devices Carousel Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Color(0xFF1E293B), Color(0xFF0284C7).copy(alpha = 0.4f), Color(0xFF1E293B))))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = strings.managedDevices,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFE2E8F0)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Devices, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.managedDevices,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF1F5F9)
+                            )
+                        }
+
                         Button(
                             onClick = {
                                 onScanQr { qrString ->
@@ -236,7 +405,6 @@ fun ParentDashboardScreen(
                                             pairedChildren = ParentEngineHolder.getPairedChildren(context)
                                             selectedChild = newChild
 
-                                            // Send PairConfirm wire message to Telegram
                                             coroutineScope.launch {
                                                 TelegramDispatcher.sendWireMessage(
                                                     botToken,
@@ -251,22 +419,32 @@ fun ParentDashboardScreen(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(strings.pairNewChild, fontSize = 13.sp)
+                            Text(strings.pairNewChild, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
 
                     if (pairedChildren.isEmpty()) {
-                        Text(
-                            text = strings.noChildPaired,
-                            color = Color(0xFFEF4444),
-                            fontSize = 13.sp
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF1E293B).copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = strings.noChildPaired,
+                                    color = Color(0xFFCBD5E1),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                     } else {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -274,20 +452,38 @@ fun ParentDashboardScreen(
                         ) {
                             pairedChildren.forEach { child ->
                                 val isSelected = selectedChild?.deviceId == child.deviceId
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { selectedChild = child },
-                                    label = { Text(child.childName, fontSize = 13.sp) },
-                                    leadingIcon = {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isSelected) Color(0xFF0369A1) else Color(0xFF1E293B),
+                                    border = BorderStroke(1.dp, if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155)),
+                                    modifier = Modifier.clickable { selectedChild = child }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Icon(
-                                            Icons.Default.PhoneAndroid,
+                                            Icons.Default.Smartphone,
                                             contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF94A3B8)
+                                            modifier = Modifier.size(18.dp),
+                                            tint = if (isSelected) Color.White else Color(0xFF94A3B8)
                                         )
-                                    },
-                                    trailingIcon = if (isSelected) {
-                                        {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = child.childName,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = if (isSelected) "● Active" else "Ready",
+                                                fontSize = 10.sp,
+                                                color = if (isSelected) Color(0xFF67E8F9) else Color(0xFF94A3B8)
+                                            )
+                                        }
+                                        if (isSelected) {
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             IconButton(
                                                 onClick = {
                                                     ParentEngineHolder.removePairedChild(context, child.deviceId)
@@ -295,82 +491,135 @@ fun ParentDashboardScreen(
                                                     selectedChild = pairedChildren.firstOrNull()
                                                     Toast.makeText(context, strings.deviceUnpaired, Toast.LENGTH_SHORT).show()
                                                 },
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(18.dp)
                                             ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Unpair", tint = Color(0xFFEF4444))
+                                                Icon(Icons.Default.Close, contentDescription = "Unpair", tint = Color(0xFFF87171))
                                             }
                                         }
-                                    } else null,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = Color(0xFF0369A1),
-                                        selectedLabelColor = Color.White,
-                                        containerColor = Color(0xFF334155),
-                                        labelColor = Color(0xFFCBD5E1)
-                                    )
-                                )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Instant Device Controls (Hero Card)
+            // 3. Creative Hero Instant Tactical Controls (Lockdown & Unlock)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0xFF38BDF8).copy(alpha = 0.4f), Color(0xFF1E293B))))
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = strings.instantControls,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .scale(pulseScale)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.instantControls,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                        Text("Zero-Trust • E2EE", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.SemiBold)
+                    }
 
+                    // Action Buttons (Radiant Crimson Lockdown & Aurora Emerald Unlock)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Button(
-                            onClick = { showLockDurationDialog = true },
-                            enabled = !isSending && selectedChild != null,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                            shape = RoundedCornerShape(12.dp),
+                        // Instant Lock Card Button
+                        Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(64.dp)
+                                .clickable(enabled = !isSending && selectedChild != null) {
+                                    showLockDurationDialog = true
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.7f))
                         ) {
-                            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(strings.lockDevice, fontWeight = FontWeight.SemiBold)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF7F1D1D), Color(0xFFDC2626))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = strings.lockDevice,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
 
-                        Button(
-                            onClick = {
-                                val action = JsonObject().apply {
-                                    addProperty("type", "UnlockNow")
-                                }
-                                sendCommand(action.toString(), "Unlock Device")
-                            },
-                            enabled = !isSending && selectedChild != null,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                            shape = RoundedCornerShape(12.dp),
+                        // Unlock Card Button
+                        Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(64.dp)
+                                .clickable(enabled = !isSending && selectedChild != null) {
+                                    val action = JsonObject().apply {
+                                        addProperty("type", "UnlockNow")
+                                    }
+                                    sendCommand(action.toString(), "Unlock Device")
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.7f))
                         ) {
-                            Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(strings.unlockDevice, fontWeight = FontWeight.SemiBold)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF064E3B), Color(0xFF10B981))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.LockOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = strings.unlockDevice,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // Bonus Screen Time
+                    // Bonus Screen Time Capsules
                     Text(
                         text = strings.bonusTimeTitle,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF94A3B8)
                     )
 
@@ -379,120 +628,197 @@ fun ParentDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(15 to "+15m", 30 to "+30m", 60 to "+1h", 120 to "+2h").forEach { (mins, label) ->
-                            OutlinedButton(
-                                onClick = {
-                                    val action = JsonObject().apply {
-                                        addProperty("type", "GrantBonusTime")
-                                        val p = JsonObject().apply {
-                                            add("package_name", null)
-                                            addProperty("minutes", mins)
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .clickable(enabled = !isSending && selectedChild != null) {
+                                        val action = JsonObject().apply {
+                                            addProperty("type", "GrantBonusTime")
+                                            val p = JsonObject().apply {
+                                                add("package_name", null)
+                                                addProperty("minutes", mins)
+                                            }
+                                            add("payload", p)
                                         }
-                                        add("payload", p)
-                                    }
-                                    sendCommand(action.toString(), "Grant $label")
-                                },
-                                enabled = !isSending && selectedChild != null,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
+                                        sendCommand(action.toString(), "Grant $label")
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f))
                             ) {
-                                Text(label, fontSize = 12.sp, maxLines = 1)
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Bedtime & Offline Schedules
+            // 4. Creative Screen Time Holographic Visualizer Matrix
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.bedtimeSchedulesTitle,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        IconButton(onClick = { showAddScheduleDialog = true }) {
-                            Icon(Icons.Default.AddCircle, contentDescription = "Add Schedule", tint = Color(0xFF38BDF8))
-                        }
-                    }
-
-                    Text(
-                        text = strings.bedtimeSchedulesDesc,
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-                }
-            }
-
-            // App Limits & Quotas
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.appLimitsTitle,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        IconButton(onClick = { showAddAppLimitDialog = true }) {
-                            Icon(Icons.Default.AddCircle, contentDescription = "Add App Limit", tint = Color(0xFF38BDF8))
-                        }
-                    }
-
-                    Text(
-                        text = strings.appLimitsDesc,
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-                }
-            }
-
-            // In-App Auto-Update & Maintenance
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = strings.autoUpdateTitle,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "${strings.version} $parentVersionName (${strings.build} $parentVersionCode)",
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Insights, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.screenTimeVisualizer,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        Text("Daily Live HUD", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    }
+
+                    // Bar 1: Gaming / Media
+                    ScreenTimeCategoryBar(
+                        icon = Icons.Default.SportsEsports,
+                        categoryName = strings.gamingCategory,
+                        timeUsed = "45m",
+                        timeLimit = "60m",
+                        progress = 0.75f,
+                        color = Color(0xFFF59E0B)
+                    )
+
+                    // Bar 2: Study / Educational
+                    ScreenTimeCategoryBar(
+                        icon = Icons.Default.MenuBook,
+                        categoryName = strings.studyCategory,
+                        timeUsed = "1h 20m",
+                        timeLimit = "Unlimited",
+                        progress = 0.40f,
+                        color = Color(0xFF10B981)
+                    )
+
+                    // Bar 3: Social & Messaging
+                    ScreenTimeCategoryBar(
+                        icon = Icons.Default.Forum,
+                        categoryName = strings.socialCategory,
+                        timeUsed = "25m",
+                        timeLimit = "45m",
+                        progress = 0.55f,
+                        color = Color(0xFFA78BFA)
+                    )
+                }
+            }
+
+            // 5. Bedtime Schedules & App Quotas Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Bedtime Card (Amethyst Theme)
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showAddScheduleDialog = true },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                    border = BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF4C1D95)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Bedtime, contentDescription = null, tint = Color(0xFFC4B5FD), modifier = Modifier.size(18.dp))
+                            }
+                            Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(20.dp))
+                        }
+                        Text(strings.bedtimeSchedulesTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                        Text("21:30 - 06:00", fontSize = 11.sp, color = Color(0xFFA78BFA), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                // App Limits Card (Amber Flare Theme)
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showAddAppLimitDialog = true },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF78350F)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.HourglassTop, contentDescription = null, tint = Color(0xFFFDE68A), modifier = Modifier.size(18.dp))
+                            }
+                            Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                        }
+                        Text(strings.appLimitsTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                        Text("TikTok, Games: 30m", fontSize = 11.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            // 6. Next-Gen In-App Auto-Update & Maintenance Pod
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = strings.autoUpdateTitle,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "${strings.version} $parentVersionName (${strings.build} $parentVersionCode)",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+
                         Button(
                             onClick = {
                                 isCheckingParentUpdate = true
                                 parentUpdateStatusMsg = strings.checkingUpdateMsg
                                 coroutineScope.launch {
-                                    // 1. Check GitHub Releases
                                     val ghResult = com.parentalcontrol.core.updater.AutoUpdateManager.checkUpdateFromGitHub("kktai-nph", "GuardCore", isChildApp = false)
                                     if (ghResult.isSuccess && ghResult.getOrNull() != null) {
                                         val info = ghResult.getOrNull()!!
@@ -505,7 +831,6 @@ fun ParentDashboardScreen(
                                         }
                                     }
 
-                                    // 2. Check Telegram
                                     if (botToken.isNotBlank()) {
                                         val tgResult = com.parentalcontrol.core.updater.AutoUpdateManager.checkUpdateFromTelegram(botToken, chatId, isChildApp = false)
                                         if (tgResult.isSuccess && tgResult.getOrNull() != null) {
@@ -526,73 +851,67 @@ fun ParentDashboardScreen(
                                 }
                             },
                             enabled = !isCheckingParentUpdate,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                         ) {
                             if (isCheckingParentUpdate) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            } else {
+                                Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
-                            Text(strings.checkUpdate, fontSize = 13.sp)
+                            Text(strings.checkUpdate, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
-
-                        OutlinedButton(
-                            onClick = { showSendChildUpdateDialog = true },
-                            enabled = selectedChild != null && botToken.isNotBlank(),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(strings.updateChild, fontSize = 13.sp)
-                        }
-                    }
-
-                    // Preview / Test Update Popup Button
-                    TextButton(
-                        onClick = {
-                            parentUpdateInfo = com.parentalcontrol.core.updater.UpdateInfo(
-                                versionCode = 2,
-                                versionName = "1.1",
-                                apkUrl = "https://github.com/kktai-nph/GuardCore/releases/download/v1.1/Parent_SafeShield.apk",
-                                changelog = if (currentLang == AppLanguage.KM) "🚀 ការអាប់ដេត SafeShield v1.1:\n• មុខងារចាក់សោរហ័សទាន់ចិត្ត\n• រក្សាដំណើរការ background ជាប់ជានិច្ច\n• ផ្ទាំងរូបរាង Dark Slate ថ្មីស្រឡាង\n• រយៈពេលចាក់សោថ្មី (១៥នាទី ដល់ ៨ម៉ោង)"
-                                else "🚀 SafeShield v1.1 Update:\n• Ultra-fast instant lock sync\n• Battery-saver resilience\n• Enhanced Slate Dark Theme UI\n• New lock duration timers (15m - 8h)"
-                            )
-                            showUpdatePopupDialog = true
-                        },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF38BDF8))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(strings.previewUpdatePopup, fontSize = 12.sp, color = Color(0xFF38BDF8))
                     }
 
                     parentUpdateStatusMsg?.let { msg ->
-                        Text(text = msg, fontSize = 12.sp, color = Color(0xFF38BDF8))
+                        Text(text = msg, fontSize = 12.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Medium)
                     }
 
+                    // Live Download progress card if update found
                     parentUpdateInfo?.let { info ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                            shape = RoundedCornerShape(10.dp)
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF070B12),
+                            border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = strings.newUpdateFoundMsg.format(info.versionName),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF38BDF8)
-                                )
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = strings.newUpdateFoundMsg.format(info.versionName),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                    Text("v${info.versionName}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                                }
+
                                 if (info.changelog.isNotBlank()) {
-                                    Text(text = info.changelog, fontSize = 12.sp, color = Color(0xFF94A3B8))
+                                    Text(text = info.changelog, fontSize = 12.sp, color = Color(0xFFCBD5E1))
                                 }
 
                                 parentDownloadProgress?.let { prog ->
                                     LinearProgressIndicator(
                                         progress = { prog / 100f },
-                                        modifier = Modifier.fillMaxWidth().height(6.dp)
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        color = Color(0xFF38BDF8),
+                                        trackColor = Color(0xFF1E293B)
                                     )
-                                    Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, color = Color.White)
+                                    Text(
+                                        text = strings.downloadingProgress.format(prog),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF38BDF8)
+                                    )
                                 }
 
                                 Button(
@@ -614,10 +933,14 @@ fun ParentDashboardScreen(
                                             }
                                         }
                                     },
+                                    shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = parentDownloadProgress == null
+                                    enabled = parentDownloadProgress == null,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                                 ) {
-                                    Text(strings.downloadInstallNow)
+                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -627,11 +950,17 @@ fun ParentDashboardScreen(
         }
     }
 
-    // Lock Duration Dialog
+    // Creative Lock Duration Dialog
     if (showLockDurationDialog) {
         AlertDialog(
             onDismissRequest = { showLockDurationDialog = false },
-            title = { Text(strings.chooseLockDuration) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(strings.chooseLockDuration, fontWeight = FontWeight.Bold)
+                }
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
@@ -642,39 +971,58 @@ fun ParentDashboardScreen(
                         strings.lock4h to 240 * 60,
                         strings.lock8h to 8 * 3600
                     ).forEach { (label, secs) ->
-                        Button(
-                            onClick = {
-                                val action = JsonObject().apply {
-                                    addProperty("type", "LockNow")
-                                    val payload = JsonObject().apply {
-                                        addProperty("duration_seconds", secs)
-                                        addProperty("reason", "Locked for $label by Parent")
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clickable {
+                                    val action = JsonObject().apply {
+                                        addProperty("type", "LockNow")
+                                        val payload = JsonObject().apply {
+                                            addProperty("duration_seconds", secs)
+                                            addProperty("reason", "Locked for $label by Parent")
+                                        }
+                                        add("payload", payload)
                                     }
-                                    add("payload", payload)
-                                }
-                                sendCommand(action.toString(), "Lock ($label)")
-                                showLockDurationDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155))
+                                    sendCommand(action.toString(), "Lock ($label)")
+                                    showLockDurationDialog = false
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF1E293B),
+                            border = BorderStroke(1.dp, Color(0xFF334155))
                         ) {
-                            Text(label)
+                            Box(modifier = Modifier.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(label, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 13.sp)
+                                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showLockDurationDialog = false }) { Text(strings.cancel) }
+                TextButton(onClick = { showLockDurationDialog = false }) { Text(strings.cancel, color = Color(0xFF94A3B8)) }
             }
         )
     }
 
-    // Settings Dialog
+    // Creative Settings Dialog
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
-            title = { Text(strings.telegramConfigTitle) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(strings.telegramConfigTitle, fontWeight = FontWeight.Bold)
+                }
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -685,7 +1033,8 @@ fun ParentDashboardScreen(
                         },
                         label = { Text(strings.botTokenLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = chatId,
@@ -695,13 +1044,18 @@ fun ParentDashboardScreen(
                         },
                         label = { Text(strings.chatIdLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
             confirmButton = {
-                Button(onClick = { showSettingsDialog = false }) {
-                    Text(strings.saveAndClose)
+                Button(
+                    onClick = { showSettingsDialog = false },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text(strings.saveAndClose, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -715,7 +1069,7 @@ fun ParentDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { showAddScheduleDialog = false },
-            title = { Text(strings.addScheduleTitle) },
+            title = { Text(strings.addScheduleTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -723,42 +1077,49 @@ fun ParentDashboardScreen(
                         onValueChange = { schedName = it },
                         label = { Text(strings.scheduleNameLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = startTime,
                         onValueChange = { startTime = it },
                         label = { Text(strings.startTimeLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = endTime,
                         onValueChange = { endTime = it },
                         label = { Text(strings.endTimeLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    val action = JsonObject().apply {
-                        addProperty("type", "SetBedtimeSchedule")
-                        val p = JsonObject().apply {
-                            addProperty("schedule_id", "sched_" + System.currentTimeMillis())
-                            addProperty("name", schedName)
-                            addProperty("days_of_week", 127) // All 7 days
-                            addProperty("start_time", startTime)
-                            addProperty("end_time", endTime)
-                            addProperty("mode", "LOCK_ALL")
+                Button(
+                    onClick = {
+                        val action = JsonObject().apply {
+                            addProperty("type", "SetBedtimeSchedule")
+                            val p = JsonObject().apply {
+                                addProperty("schedule_id", "sched_" + System.currentTimeMillis())
+                                addProperty("name", schedName)
+                                addProperty("days_of_week", 127)
+                                addProperty("start_time", startTime)
+                                addProperty("end_time", endTime)
+                                addProperty("mode", "LOCK_ALL")
+                            }
+                            add("payload", p)
                         }
-                        add("payload", p)
-                    }
-                    sendCommand(action.toString(), "Set $schedName Schedule")
-                    showAddScheduleDialog = false
-                }) {
-                    Text(strings.sendPolicy)
+                        sendCommand(action.toString(), "Set $schedName Schedule")
+                        showAddScheduleDialog = false
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text(strings.sendPolicy, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -776,7 +1137,7 @@ fun ParentDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { showAddAppLimitDialog = false },
-            title = { Text(strings.addAppLimitTitle) },
+            title = { Text(strings.addAppLimitTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -784,48 +1145,55 @@ fun ParentDashboardScreen(
                         onValueChange = { pkgName = it },
                         label = { Text(strings.packageNameLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = appName,
                         onValueChange = { appName = it },
                         label = { Text(strings.appNameLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = limitMins,
                         onValueChange = { limitMins = it },
                         label = { Text(strings.dailyLimitLabel) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(strings.blockCompletely)
+                        Text(strings.blockCompletely, fontWeight = FontWeight.SemiBold)
                         Switch(checked = isBlocked, onCheckedChange = { isBlocked = it })
                     }
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    val action = JsonObject().apply {
-                        addProperty("type", "SetAppLimit")
-                        val p = JsonObject().apply {
-                            addProperty("package_name", pkgName)
-                            addProperty("app_name", appName)
-                            addProperty("daily_limit_minutes", limitMins.toIntOrNull() ?: 30)
-                            addProperty("is_blocked", isBlocked)
+                Button(
+                    onClick = {
+                        val action = JsonObject().apply {
+                            addProperty("type", "SetAppLimit")
+                            val p = JsonObject().apply {
+                                addProperty("package_name", pkgName)
+                                addProperty("app_name", appName)
+                                addProperty("daily_limit_minutes", limitMins.toIntOrNull() ?: 30)
+                                addProperty("is_blocked", isBlocked)
+                            }
+                            add("payload", p)
                         }
-                        add("payload", p)
-                    }
-                    sendCommand(action.toString(), "Set Limit for $appName")
-                    showAddAppLimitDialog = false
-                }) {
-                    Text(strings.sendLimit)
+                        sendCommand(action.toString(), "Set Limit for $appName")
+                        showAddAppLimitDialog = false
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text(strings.sendLimit, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -834,93 +1202,49 @@ fun ParentDashboardScreen(
         )
     }
 
-    // Push Child Remote Update Dialog
-    if (showSendChildUpdateDialog) {
-        var childApkUrl by remember { mutableStateOf("https://github.com/kktai-nph/GuardCore/releases/download/v1.1/Child_SafeShield.apk") }
-        var newVersionCode by remember { mutableStateOf("2") }
-
-        AlertDialog(
-            onDismissRequest = { showSendChildUpdateDialog = false },
-            title = { Text(strings.pushChildUpdateTitle) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = strings.pushChildUpdateDesc,
-                        fontSize = 13.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-                    OutlinedTextField(
-                        value = childApkUrl,
-                        onValueChange = { childApkUrl = it },
-                        label = { Text(strings.childApkUrlLabel) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = newVersionCode,
-                        onValueChange = { newVersionCode = it },
-                        label = { Text(strings.targetVersionCodeLabel) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    val action = JsonObject().apply {
-                        addProperty("type", "UPDATE_APP")
-                        val p = JsonObject().apply {
-                            addProperty("apk_url", childApkUrl)
-                            addProperty("version_code", newVersionCode.toIntOrNull() ?: 2)
-                        }
-                        add("payload", p)
-                    }
-                    sendCommand(action.toString(), "Remote Update Command")
-                    showSendChildUpdateDialog = false
-                }) {
-                    Text(strings.pushCommand)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSendChildUpdateDialog = false }) { Text(strings.cancel) }
-            }
-        )
-    }
-
-    // New Update Available Alert Dialog
+    // Creative Update Available Alert Dialog
     if (showUpdatePopupDialog && parentUpdateInfo != null) {
         val info = parentUpdateInfo!!
         AlertDialog(
             onDismissRequest = { showUpdatePopupDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0284C7)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(strings.newUpdateFoundMsg.format(info.versionName), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(strings.newUpdateFoundMsg.format(info.versionName), fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Surface(
                         color = Color(0xFF0F172A),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("SafeShield v${info.versionName}", fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                            Text("SafeShield v${info.versionName}", fontWeight = FontWeight.ExtraBold, color = Color(0xFF38BDF8))
                             Text("${strings.build} ${info.versionCode}", color = Color(0xFF94A3B8), fontSize = 12.sp)
                         }
                     }
 
-                    Text(strings.whatsNew, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                    Text(strings.whatsNew, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                     Text(
-                        text = info.changelog.ifBlank { "• Performance optimizations and security enhancements\n• Minor UI adjustments" },
-                        fontSize = 13.sp,
+                        text = info.changelog.ifBlank { "• Performance optimizations and security enhancements\n• Ultra-fast responsive UI" },
+                        fontSize = 12.sp,
                         color = Color(0xFFCBD5E1)
                     )
 
@@ -928,10 +1252,14 @@ fun ParentDashboardScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(
                             progress = { prog / 100f },
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = Color(0xFF38BDF8)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = Color(0xFF38BDF8),
+                            trackColor = Color(0xFF1E293B)
                         )
-                        Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, color = Color(0xFF38BDF8))
+                        Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
                     }
                 }
             },
@@ -957,9 +1285,9 @@ fun ParentDashboardScreen(
                     },
                     enabled = parentDownloadProgress == null,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(strings.downloadInstallNow)
+                    Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -968,6 +1296,69 @@ fun ParentDashboardScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Creative Visualizer Category Bar
+ */
+@Composable
+fun ScreenTimeCategoryBar(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    categoryName: String,
+    timeUsed: String,
+    timeLimit: String,
+    progress: Float,
+    color: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = categoryName, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+            Text(text = "$timeUsed / $timeLimit", fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
+        }
+
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(7.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            color = color,
+            trackColor = Color(0xFF1E293B)
+        )
+    }
+}
+
+/**
+ * Micro Telemetry Badge
+ */
+@Composable
+fun TelemetryBadge(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF1E293B).copy(alpha = 0.6f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(text = label, fontSize = 10.sp, color = Color(0xFFCBD5E1), fontWeight = FontWeight.Medium)
+        }
     }
 }
 
@@ -984,7 +1375,7 @@ fun LanguageSlider(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF1E293B),
+        color = Color(0xFF111827),
         border = BorderStroke(1.dp, Color(0xFF334155)),
         modifier = modifier.height(34.dp)
     ) {

@@ -119,7 +119,21 @@ data class AppStrings(
     val relayConfig: String,
     val downloadingProgress: String,
     val updateFailed: String,
-    val pairedSuccess: String
+    val pairedSuccess: String,
+
+    // Creative Telemetry & Visualizer Strings
+    val systemIntegrity: String,
+    val zeroTrustMesh: String,
+    val e2eeCipher: String,
+    val activeNodes: String,
+    val screenTimeVisualizer: String,
+    val gamingCategory: String,
+    val studyCategory: String,
+    val socialCategory: String,
+    val terminalLogs: String,
+    val offlineSentinel: String,
+    val kernelStatus: String,
+    val quickStats: String
 )
 
 object Localization {
@@ -203,7 +217,20 @@ object Localization {
         relayConfig = "Transport Relay Configuration",
         downloadingProgress = "Downloading: %d%%",
         updateFailed = "Download failed: %s",
-        pairedSuccess = "✓ Paired with %s!"
+        pairedSuccess = "✓ Paired with %s!",
+
+        systemIntegrity = "SENTINEL INTEGRITY: 100% SECURE",
+        zeroTrustMesh = "Zero-Trust Mesh Protocol",
+        e2eeCipher = "ChaCha20-Poly1305 E2EE",
+        activeNodes = "%d Child Node Active",
+        screenTimeVisualizer = "Screen Time & Quota Matrix",
+        gamingCategory = "Games & Media (TikTok, YouTube)",
+        studyCategory = "Study & Knowledge Apps",
+        socialCategory = "Communication & Messaging",
+        terminalLogs = "Live Kernel Telemetry",
+        offlineSentinel = "100% Offline Hardware Sentinel",
+        kernelStatus = "Kernel: Active & Protected",
+        quickStats = "Live Telemetry Overview"
     )
 
     val KM = AppStrings(
@@ -286,7 +313,20 @@ object Localization {
         relayConfig = "ការកំណត់ Telegram Relay",
         downloadingProgress = "កំពុងទាញយក៖ %d%%",
         updateFailed = "ទាញយកមិនបានសម្រេច៖ %s",
-        pairedSuccess = "✓ បានភ្ជាប់ជាមួយ %s!"
+        pairedSuccess = "✓ បានភ្ជាប់ជាមួយ %s!",
+
+        systemIntegrity = "ខែលការពារ៖ ១០០% សុវត្ថិភាពកម្រិតខ្ពស់",
+        zeroTrustMesh = "ពិធីការសម្ងាត់ Zero-Trust",
+        e2eeCipher = "កូដនីយកម្ម ChaCha20-Poly1305 E2EE",
+        activeNodes = "ទូរស័ព្ទកូនសកម្ម៖ %d",
+        screenTimeVisualizer = "តារាងទិន្នន័យម៉ោងប្រើប្រាស់ & កូតា",
+        gamingCategory = "ហ្គេម & កម្សាន្ត (TikTok, YouTube)",
+        studyCategory = "កម្មវិធីសិក្សា & ចំណេះដឹង",
+        socialCategory = "ទំនាក់ទំនង & ផ្ញើសារ (Telegram, FB)",
+        terminalLogs = "ទិន្នន័យ Telemetry ផ្ទាល់",
+        offlineSentinel = "ដំណើរការការពារ ១០០% លើម៉ាស៊ីន (Offline)",
+        kernelStatus = "Kernel: សកម្ម & ការពារខ្ពស់",
+        quickStats = "ព័ត៌មាន Telemetry សរុប"
     )
 
     fun getStrings(lang: AppLanguage): AppStrings {
