@@ -90,3 +90,16 @@ adb shell dpm set-device-owner com.parentalcontrol.child/.receiver.AdminReceiver
 2. Open **Parent SafeShield** on parent's phone -> Tap **"Pair Child"** and scan the QR.
 3. The parent app automatically generates a cryptographic `PairConfirm` message, signs it with the parent's Ed25519 private key, and dispatches it over Telegram.
 4. The child app verifies the setup token and registers the parent public key into local SQLite. Both devices are now securely linked.
+
+---
+
+## 🔄 GitHub Releases & OTA Auto-Updates
+
+Both Parent and Child SafeShield apps feature built-in zero-friction OTA updates directly from GitHub Releases:
+
+1. Go to [GuardCore GitHub Releases](https://github.com/kktai-nph/GuardCore/releases/new).
+2. Create a new Release with tag name `v1.1` (or newer).
+3. Attach `Child_SafeShield.apk` and `Parent_SafeShield.apk` from the `apks/` directory.
+4. Write your changelog in the release description.
+5. In the Parent or Child app, tap **"Check Update"** -> The app queries `https://api.github.com/repos/kktai-nph/GuardCore/releases/latest`, displays the changelog popup dialog, and downloads/installs the new version seamlessly!
+
