@@ -1,0 +1,4 @@
+module parental_control_coreFFI {
+    header "parental_control_coreFFI.h"
+    export *
+}

@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Gradle & Android
+.gradle/
+**/build/
+android/.gradle/
+android/build/
+android/app-child/build/
+android/app-parent/build/
+android/core-bridge/build/
+local.properties
+android/local.properties
+*.iml
+.idea/
+*.hprof
+*.log
+
+# Node / Web / iOS
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Sensitive or temporary tokens
+*.tmp
+*.bak

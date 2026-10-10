@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Child Safe Shield</string>
+    <string name="accessibility_service_description">Monitors app launches to enforce parental limits and bedtime schedules safely.</string>
+</resources>
