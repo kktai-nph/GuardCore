@@ -225,28 +225,31 @@ object AutoUpdateManager {
     }
 
     /**
-     * Download the APK with progress streaming callback (0 - 100%).
-     * Supports automatic fallback to raw GitHub repository CDN if release URL 404s.
+     * Download the APK with real-time live progress streaming callback.
+     * @param onProgress: (percent: Int, downloadedBytes: Long, totalBytes: Long)
      */
     suspend fun downloadApk(
         context: Context,
         apkUrl: String,
-        onProgress: (percent: Int) -> Unit
+        onProgress: (percent: Int, downloadedBytes: Long, totalBytes: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
-            onProgress(1) // Immediate user feedback
-
             val urlsToTry = mutableListOf(apkUrl)
-            if (apkUrl.contains("github.com", ignoreCase = true) && apkUrl.contains("releases/download", ignoreCase = true)) {
+
+            // Auto-generate standard GitHub release direct binary URLs and CDN URLs
+            if (apkUrl.contains("github.com", ignoreCase = true)) {
                 val apkName = if (apkUrl.contains("child", ignoreCase = true)) "Child_SafeShield.apk" else "Parent_SafeShield.apk"
-                urlsToTry.add("https://raw.githubusercontent.com/kktai-nph/GuardCore/main/apks/$apkName")
+                val rawCdnUrl = "https://raw.githubusercontent.com/kktai-nph/GuardCore/main/apks/$apkName"
+                if (!urlsToTry.contains(rawCdnUrl)) {
+                    urlsToTry.add(rawCdnUrl)
+                }
             }
 
             var lastException: Exception? = null
 
             for (currentUrl in urlsToTry) {
                 try {
-                    Log.i(TAG, "Attempting APK download from: $currentUrl")
+                    Log.i(TAG, "Initiating real binary APK download from: $currentUrl")
                     val request = Request.Builder()
                         .url(currentUrl)
                         .header("User-Agent", "SafeShield-OTA-Updater")
@@ -263,38 +266,34 @@ object AutoUpdateManager {
                     val body = response.body ?: throw Exception("Empty response body from $currentUrl")
                     var totalBytes = body.contentLength()
                     if (totalBytes <= 0) {
-                        totalBytes = 27 * 1024 * 1024L // Approximate ~27MB default
+                        totalBytes = 27 * 1024 * 1024L // Approximate ~27MB default if Content-Length omitted
                     }
 
                     val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
                     if (!downloadDir.exists()) downloadDir.mkdirs()
 
-                    val destFile = File(downloadDir, "update_${System.currentTimeMillis()}.apk")
+                    val destFile = File(downloadDir, "SafeShield_Update_${System.currentTimeMillis()}.apk")
 
                     body.byteStream().use { input: InputStream ->
                         FileOutputStream(destFile).use { output ->
-                            val buffer = ByteArray(32 * 1024)
+                            val buffer = ByteArray(64 * 1024)
                             var bytesRead: Int
                             var totalRead = 0L
-                            var lastReportedPercent = 1
 
                             while (input.read(buffer).also { bytesRead = it } != -1) {
                                 output.write(buffer, 0, bytesRead)
                                 totalRead += bytesRead
 
                                 val percent = ((totalRead * 100) / totalBytes).toInt().coerceIn(1, 99)
-                                if (percent != lastReportedPercent) {
-                                    lastReportedPercent = percent
-                                    onProgress(percent)
-                                }
+                                onProgress(percent, totalRead, totalBytes)
                             }
                             output.flush()
                         }
                     }
 
                     if (destFile.exists() && destFile.length() > 500 * 1024) {
-                        onProgress(100)
-                        Log.i(TAG, "Successfully downloaded APK: ${destFile.absolutePath} (${destFile.length()} bytes)")
+                        onProgress(100, destFile.length(), destFile.length())
+                        Log.i(TAG, "Successfully downloaded real APK: ${destFile.absolutePath} (${destFile.length()} bytes)")
                         return@withContext Result.success(destFile)
                     } else {
                         throw Exception("Downloaded file is incomplete (${destFile.length()} bytes)")

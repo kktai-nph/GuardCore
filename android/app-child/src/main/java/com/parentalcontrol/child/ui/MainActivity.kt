@@ -143,7 +143,7 @@ fun ChildDashboardScreen(
     // Updater State
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<com.parentalcontrol.core.updater.UpdateInfo?>(null) }
-    var downloadProgress by remember { mutableStateOf<Int?>(null) }
+    var downloadStats by remember { mutableStateOf<Triple<Int, Double, Double>?>(null) }
     var updateStatusMsg by remember { mutableStateOf<String?>(null) }
     val currentVersionName = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionName(context) }
     val currentVersionCode = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionCode(context) }
@@ -636,7 +636,8 @@ fun ChildDashboardScreen(
                                 Text(text = info.changelog, fontSize = 12.sp, color = Color(0xFFCBD5E1))
                             }
 
-                            downloadProgress?.let { prog ->
+                            downloadStats?.let { stats ->
+                                val (prog, dlMb, totMb) = stats
                                 LinearProgressIndicator(
                                     progress = { prog / 100f },
                                     modifier = Modifier
@@ -646,22 +647,28 @@ fun ChildDashboardScreen(
                                     color = Color(0xFF2DD4BF),
                                     trackColor = Color(0xFF115E59)
                                 )
-                                Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(
+                                    text = strings.downloadingProgress.format(dlMb, totMb, prog),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
 
                             Button(
                                 onClick = {
                                     coroutineScope.launch {
-                                        downloadProgress = 1
-                                        val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
-                                            downloadProgress = p
+                                        downloadStats = Triple(1, 0.1, 27.0)
+                                        val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
+                                            downloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
                                         }
                                         if (dl.isSuccess) {
                                             val file = dl.getOrThrow()
-                                            downloadProgress = 100
+                                            val sizeMb = file.length() / (1024.0 * 1024.0)
+                                            downloadStats = Triple(100, sizeMb, sizeMb)
                                             com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                         } else {
-                                            downloadProgress = null
+                                            downloadStats = null
                                             val err = dl.exceptionOrNull()?.message ?: "Download failed"
                                             updateStatusMsg = strings.updateFailed.format(err)
                                             android.widget.Toast.makeText(context, updateStatusMsg, android.widget.Toast.LENGTH_LONG).show()
@@ -670,7 +677,7 @@ fun ChildDashboardScreen(
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = downloadProgress == null,
+                                enabled = downloadStats == null,
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
                             ) {
                                 Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))

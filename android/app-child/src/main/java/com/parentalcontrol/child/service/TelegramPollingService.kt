@@ -213,8 +213,8 @@ class TelegramPollingService : Service() {
                 if (newCode > currentCode) {
                     val apkUrl = root.get(urlKey).asString
                     Log.i(TAG, "New OTA version available: $newCode (Current: $currentCode). Downloading from $apkUrl...")
-                    val dlResult = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(applicationContext, apkUrl) { percent ->
-                        Log.d(TAG, "OTA Download progress: $percent%")
+                    val dlResult = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(applicationContext, apkUrl) { percent, dlBytes, totBytes ->
+                        Log.d(TAG, "OTA Download progress: $percent% ($dlBytes / $totBytes bytes)")
                     }
                     if (dlResult.isSuccess) {
                         val apkFile = dlResult.getOrThrow()
@@ -239,8 +239,8 @@ class TelegramPollingService : Service() {
 
                 if (!apkUrl.isNullOrBlank()) {
                     Log.i(TAG, "Executing parent remote update command: $apkUrl")
-                    val dlResult = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(applicationContext, apkUrl) { percent ->
-                        Log.d(TAG, "Remote update download: $percent%")
+                    val dlResult = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(applicationContext, apkUrl) { percent, dlBytes, totBytes ->
+                        Log.d(TAG, "Remote update download: $percent% ($dlBytes / $totBytes bytes)")
                     }
                     if (dlResult.isSuccess) {
                         val apkFile = dlResult.getOrThrow()

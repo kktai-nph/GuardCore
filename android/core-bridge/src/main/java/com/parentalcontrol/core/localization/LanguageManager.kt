@@ -215,7 +215,7 @@ object Localization {
         batteryOptimization = "Ignore Battery Optimizations",
         batteryOptimizationDesc = "Keep background listener alive",
         relayConfig = "Transport Relay Configuration",
-        downloadingProgress = "Downloading: %d%%",
+        downloadingProgress = "Downloading: %.1f MB / %.1f MB (%d%%)",
         updateFailed = "Download failed: %s",
         pairedSuccess = "✓ Paired with %s!",
 
@@ -311,7 +311,7 @@ object Localization {
         batteryOptimization = "មិនបិទ App សន្សំថ្ម (Battery)",
         batteryOptimizationDesc = "ដំណើរការសេវាការពារជាប់ជាប្រចាំ",
         relayConfig = "ការកំណត់ Telegram Relay",
-        downloadingProgress = "កំពុងទាញយក៖ %d%%",
+        downloadingProgress = "កំពុងទាញយក៖ %.1f MB / %.1f MB (%d%%)",
         updateFailed = "ទាញយកមិនបានសម្រេច៖ %s",
         pairedSuccess = "✓ បានភ្ជាប់ជាមួយ %s!",
 

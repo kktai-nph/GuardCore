@@ -109,7 +109,7 @@ fun ParentDashboardScreen(
 
     var isCheckingParentUpdate by remember { mutableStateOf(false) }
     var parentUpdateInfo by remember { mutableStateOf<com.parentalcontrol.core.updater.UpdateInfo?>(null) }
-    var parentDownloadProgress by remember { mutableStateOf<Int?>(null) }
+    var parentDownloadStats by remember { mutableStateOf<Triple<Int, Double, Double>?>(null) }
     var parentUpdateStatusMsg by remember { mutableStateOf<String?>(null) }
     val parentVersionName = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionName(context) }
     val parentVersionCode = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionCode(context) }
@@ -699,7 +699,7 @@ fun ParentDashboardScreen(
 
                     // Bar 2: Study / Educational
                     ScreenTimeCategoryBar(
-                        icon = Icons.Default.MenuBook,
+                        icon = Icons.Default.Book,
                         categoryName = strings.studyCategory,
                         timeUsed = "1h 20m",
                         timeLimit = "Unlimited",
@@ -896,7 +896,8 @@ fun ParentDashboardScreen(
                                     Text(text = info.changelog, fontSize = 12.sp, color = Color(0xFFCBD5E1))
                                 }
 
-                                parentDownloadProgress?.let { prog ->
+                                parentDownloadStats?.let { stats ->
+                                    val (prog, dlMb, totMb) = stats
                                     LinearProgressIndicator(
                                         progress = { prog / 100f },
                                         modifier = Modifier
@@ -907,7 +908,7 @@ fun ParentDashboardScreen(
                                         trackColor = Color(0xFF1E293B)
                                     )
                                     Text(
-                                        text = strings.downloadingProgress.format(prog),
+                                        text = strings.downloadingProgress.format(dlMb, totMb, prog),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF38BDF8)
@@ -917,16 +918,17 @@ fun ParentDashboardScreen(
                                 Button(
                                     onClick = {
                                         coroutineScope.launch {
-                                            parentDownloadProgress = 1
-                                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
-                                                parentDownloadProgress = p
+                                            parentDownloadStats = Triple(1, 0.1, 27.0)
+                                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
+                                                parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
                                             }
                                             if (dl.isSuccess) {
                                                 val file = dl.getOrThrow()
-                                                parentDownloadProgress = 100
+                                                val sizeMb = file.length() / (1024.0 * 1024.0)
+                                                parentDownloadStats = Triple(100, sizeMb, sizeMb)
                                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                             } else {
-                                                parentDownloadProgress = null
+                                                parentDownloadStats = null
                                                 val err = dl.exceptionOrNull()?.message ?: "Download failed"
                                                 parentUpdateStatusMsg = strings.updateFailed.format(err)
                                                 Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
@@ -935,7 +937,7 @@ fun ParentDashboardScreen(
                                     },
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = parentDownloadProgress == null,
+                                    enabled = parentDownloadStats == null,
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                                 ) {
                                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1248,7 +1250,8 @@ fun ParentDashboardScreen(
                         color = Color(0xFFCBD5E1)
                     )
 
-                    parentDownloadProgress?.let { prog ->
+                    parentDownloadStats?.let { stats ->
+                        val (prog, dlMb, totMb) = stats
                         Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(
                             progress = { prog / 100f },
@@ -1259,7 +1262,12 @@ fun ParentDashboardScreen(
                             color = Color(0xFF38BDF8),
                             trackColor = Color(0xFF1E293B)
                         )
-                        Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                        Text(
+                            strings.downloadingProgress.format(dlMb, totMb, prog),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8)
+                        )
                     }
                 }
             },
@@ -1267,23 +1275,24 @@ fun ParentDashboardScreen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            parentDownloadProgress = 1
-                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
-                                parentDownloadProgress = p
+                            parentDownloadStats = Triple(1, 0.1, 27.0)
+                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
+                                parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
                             }
                             if (dl.isSuccess) {
                                 val file = dl.getOrThrow()
-                                parentDownloadProgress = 100
+                                val sizeMb = file.length() / (1024.0 * 1024.0)
+                                parentDownloadStats = Triple(100, sizeMb, sizeMb)
                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                             } else {
-                                parentDownloadProgress = null
+                                parentDownloadStats = null
                                 val err = dl.exceptionOrNull()?.message ?: "Download failed"
                                 parentUpdateStatusMsg = strings.updateFailed.format(err)
                                 Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
                             }
                         }
                     },
-                    enabled = parentDownloadProgress == null,
+                    enabled = parentDownloadStats == null,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                     shape = RoundedCornerShape(10.dp)
                 ) {
