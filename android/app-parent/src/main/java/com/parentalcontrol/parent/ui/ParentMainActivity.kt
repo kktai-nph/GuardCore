@@ -6,10 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,14 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,17 +50,27 @@ class ParentMainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = Color(0xFF2563EB),
+                    secondary = Color(0xFF0D9488),
+                    background = Color(0xFF0B1120),
+                    surface = Color(0xFF1E293B),
+                    surfaceVariant = Color(0xFF334155),
+                    onBackground = Color(0xFFF8FAFC),
+                    onSurface = Color(0xFFF8FAFC)
+                )
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF070B12) // Deep Cyber Obsidian Void
+                    color = Color(0xFF0B1120)
                 ) {
                     ParentDashboardScreen(
                         context = this,
                         onScanQr = { callback ->
                             onQrScannedCallback = callback
                             val options = ScanOptions().apply {
-                                setPrompt("Scan Child SafeShield Pairing QR Code")
+                                setPrompt("Scan Child SafeShield QR Code")
                                 setBeepEnabled(true)
                                 setOrientationLocked(false)
                             }
@@ -116,28 +116,6 @@ fun ParentDashboardScreen(
 
     val engine = remember { ParentEngineHolder.getEngine(context) }
 
-    // Pulsing Animation for Hero Status
-    val infiniteTransition = rememberInfiniteTransition(label = "sentinelPulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
-
-    val radarRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radarRotation"
-    )
-
     fun sendCommand(actionJson: String, actionName: String) {
         val child = selectedChild
         if (child == null) {
@@ -163,7 +141,7 @@ fun ParentDashboardScreen(
 
                 val result = TelegramDispatcher.sendWireMessage(botToken, chatId, wireMsg)
                 if (result.isSuccess) {
-                    Toast.makeText(context, "✓ $actionName sent securely!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "✓ $actionName sent successfully", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Error sending: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                 }
@@ -176,51 +154,38 @@ fun ParentDashboardScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF070B12),
+        containerColor = Color(0xFF0B1120),
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF0284C7), Color(0xFF0369A1))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF2563EB),
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Shield,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Shield,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
                                 text = strings.appTitleParent,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = Color.White
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = strings.appSubtitleParent,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF94A3B8)
-                                )
-                            }
+                            Text(
+                                text = "SafeShield Family",
+                                fontSize = 11.sp,
+                                color = Color(0xFF94A3B8)
+                            )
                         }
                     }
                 },
@@ -234,10 +199,10 @@ fun ParentDashboardScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     IconButton(onClick = { showSettingsDialog = true }) {
-                        Icon(Icons.Default.Tune, contentDescription = "Settings", tint = Color(0xFF38BDF8))
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF94A3B8))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0B1322))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E293B))
             )
         }
     ) { padding ->
@@ -249,126 +214,12 @@ fun ParentDashboardScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Creative Animated Cyber Sentinel Radar & Integrity HUD
+            // 1. Managed Child Device Selector & Real Device Status Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0D172A)),
-                border = BorderStroke(
-                    1.dp,
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFF0284C7).copy(alpha = 0.6f),
-                            Color(0xFF38BDF8).copy(alpha = 0.2f),
-                            Color(0xFF0284C7).copy(alpha = 0.6f)
-                        )
-                    )
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Radar Animation Box
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .scale(pulseScale),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val center = Offset(size.width / 2, size.height / 2)
-                            val radius = size.minDimension / 2
-
-                            // Outer Circle
-                            drawCircle(
-                                color = Color(0xFF0284C7).copy(alpha = 0.2f),
-                                radius = radius,
-                                style = Stroke(width = 2.dp.toPx())
-                            )
-                            // Mid Circle
-                            drawCircle(
-                                color = Color(0xFF0284C7).copy(alpha = 0.35f),
-                                radius = radius * 0.7f,
-                                style = Stroke(width = 1.5.dp.toPx())
-                            )
-                            // Inner Glow Circle
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    listOf(Color(0xFF0284C7).copy(alpha = 0.4f), Color.Transparent)
-                                ),
-                                radius = radius * 0.5f
-                            )
-
-                            // Rotating Radar Sweep Line
-                            val sweepAngleRad = Math.toRadians(radarRotation.toDouble())
-                            val endX = center.x + (radius * Math.cos(sweepAngleRad)).toFloat()
-                            val endY = center.y + (radius * Math.sin(sweepAngleRad)).toFloat()
-
-                            drawLine(
-                                brush = Brush.linearGradient(
-                                    listOf(Color(0xFF38BDF8), Color.Transparent),
-                                    start = center,
-                                    end = Offset(endX, endY)
-                                ),
-                                start = center,
-                                end = Offset(endX, endY),
-                                strokeWidth = 3.dp.toPx(),
-                                cap = StrokeCap.Round
-                            )
-                        }
-
-                        // Central Shield Icon
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(Color(0xFF0284C7), Color(0xFF0369A1))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Security,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = strings.systemIntegrity,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF38BDF8),
-                        letterSpacing = 0.5.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Futuristic Telemetry Badges Strip
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        TelemetryBadge(label = "ChaCha20-Poly1305", icon = Icons.Default.Lock, color = Color(0xFF38BDF8))
-                        TelemetryBadge(label = "Zero-Trust Mesh", icon = Icons.Default.Hub, color = Color(0xFF10B981))
-                        TelemetryBadge(label = "Telegram Relay", icon = Icons.Default.CloudQueue, color = Color(0xFFA78BFA))
-                    }
-                }
-            }
-
-            // 2. Creative Managed Devices Carousel Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Color(0xFF1E293B), Color(0xFF0284C7).copy(alpha = 0.4f), Color(0xFF1E293B))))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
@@ -376,23 +227,19 @@ fun ParentDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Devices, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = strings.managedDevices,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF1F5F9)
-                            )
-                        }
+                        Text(
+                            text = strings.managedDevices,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8)
+                        )
 
-                        Button(
+                        FilledTonalButton(
                             onClick = {
                                 onScanQr { qrString ->
                                     val nowEpoch = System.currentTimeMillis() / 1000
                                     try {
-                                        val pairingResult = engine?.pairWithChildQr(qrString, "Child Device", nowEpoch.toULong())
+                                        val pairingResult = engine?.pairWithChildQr(qrString, "Child Phone", nowEpoch.toULong())
                                         if (pairingResult != null) {
                                             val newChild = PairedChild(
                                                 deviceId = pairingResult.childDeviceId,
@@ -419,9 +266,8 @@ fun ParentDashboardScreen(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -431,12 +277,12 @@ fun ParentDashboardScreen(
 
                     if (pairedChildren.isEmpty()) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF1E293B).copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF0F172A),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = strings.noChildPaired,
@@ -446,56 +292,65 @@ fun ParentDashboardScreen(
                             }
                         }
                     } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            pairedChildren.forEach { child ->
-                                val isSelected = selectedChild?.deviceId == child.deviceId
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSelected) Color(0xFF0369A1) else Color(0xFF1E293B),
-                                    border = BorderStroke(1.dp, if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155)),
-                                    modifier = Modifier.clickable { selectedChild = child }
+                        // Device Row Item
+                        selectedChild?.let { child ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF0F172A),
+                                border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.5f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Smartphone,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = if (isSelected) Color.White else Color(0xFF94A3B8)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(
-                                                text = child.childName,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                            Text(
-                                                text = if (isSelected) "● Active" else "Ready",
-                                                fontSize = 10.sp,
-                                                color = if (isSelected) Color(0xFF67E8F9) else Color(0xFF94A3B8)
-                                            )
-                                        }
-                                        if (isSelected) {
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            IconButton(
-                                                onClick = {
-                                                    ParentEngineHolder.removePairedChild(context, child.deviceId)
-                                                    pairedChildren = ParentEngineHolder.getPairedChildren(context)
-                                                    selectedChild = pairedChildren.firstOrNull()
-                                                    Toast.makeText(context, strings.deviceUnpaired, Toast.LENGTH_SHORT).show()
-                                                },
-                                                modifier = Modifier.size(18.dp)
-                                            ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Unpair", tint = Color(0xFFF87171))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(0xFF1E3A8A),
+                                            modifier = Modifier.size(42.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.Smartphone, contentDescription = null, tint = Color(0xFF60A5FA), modifier = Modifier.size(22.dp))
                                             }
                                         }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = child.childName,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF22C55E))
+                                                )
+                                            }
+                                            Text(
+                                                text = "Active & Protected • Encrypted E2EE",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF94A3B8)
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            ParentEngineHolder.removePairedChild(context, child.deviceId)
+                                            pairedChildren = ParentEngineHolder.getPairedChildren(context)
+                                            selectedChild = pairedChildren.firstOrNull()
+                                            Toast.makeText(context, strings.deviceUnpaired, Toast.LENGTH_SHORT).show()
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Unpair", tint = Color(0xFFEF4444))
                                     }
                                 }
                             }
@@ -504,122 +359,66 @@ fun ParentDashboardScreen(
                 }
             }
 
-            // 3. Creative Hero Instant Tactical Controls (Lockdown & Unlock)
+            // 2. Real Production Quick Actions (Lock / Unlock & Extra Screen Time)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0xFF38BDF8).copy(alpha = 0.4f), Color(0xFF1E293B))))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
             ) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .scale(pulseScale)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = strings.instantControls,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
-                        }
-                        Text("Zero-Trust • E2EE", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.SemiBold)
-                    }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.instantControls,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8)
+                    )
 
-                    // Action Buttons (Radiant Crimson Lockdown & Aurora Emerald Unlock)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Instant Lock Card Button
-                        Surface(
+                        // Real Lock Button
+                        Button(
+                            onClick = { showLockDurationDialog = true },
+                            enabled = !isSending && selectedChild != null,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
-                                .clickable(enabled = !isSending && selectedChild != null) {
-                                    showLockDurationDialog = true
-                                },
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.7f))
+                                .height(50.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF7F1D1D), Color(0xFFDC2626))
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = strings.lockDevice,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
-                                }
-                            }
+                            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(strings.lockDevice, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
 
-                        // Unlock Card Button
-                        Surface(
+                        // Real Unlock Button
+                        Button(
+                            onClick = {
+                                val action = JsonObject().apply {
+                                    addProperty("type", "UnlockNow")
+                                }
+                                sendCommand(action.toString(), "Unlock Device")
+                            },
+                            enabled = !isSending && selectedChild != null,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
-                                .clickable(enabled = !isSending && selectedChild != null) {
-                                    val action = JsonObject().apply {
-                                        addProperty("type", "UnlockNow")
-                                    }
-                                    sendCommand(action.toString(), "Unlock Device")
-                                },
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.7f))
+                                .height(50.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF064E3B), Color(0xFF10B981))
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.LockOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = strings.unlockDevice,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
-                                }
-                            }
+                            Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(strings.unlockDevice, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
-                    // Bonus Screen Time Capsules
+                    // Extra Bonus Screen Time Pills
                     Text(
                         text = strings.bonusTimeTitle,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         color = Color(0xFF94A3B8)
                     )
 
@@ -628,45 +427,85 @@ fun ParentDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(15 to "+15m", 30 to "+30m", 60 to "+1h", 120 to "+2h").forEach { (mins, label) ->
-                            Surface(
+                            FilledTonalButton(
+                                onClick = {
+                                    val action = JsonObject().apply {
+                                        addProperty("type", "GrantBonusTime")
+                                        val p = JsonObject().apply {
+                                            add("package_name", null)
+                                            addProperty("minutes", mins)
+                                        }
+                                        add("payload", p)
+                                    }
+                                    sendCommand(action.toString(), "Grant $label")
+                                },
+                                enabled = !isSending && selectedChild != null,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .clickable(enabled = !isSending && selectedChild != null) {
-                                        val action = JsonObject().apply {
-                                            addProperty("type", "GrantBonusTime")
-                                            val p = JsonObject().apply {
-                                                add("package_name", null)
-                                                addProperty("minutes", mins)
-                                            }
-                                            add("payload", p)
-                                        }
-                                        sendCommand(action.toString(), "Grant $label")
-                                    },
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f))
+                                    .height(40.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF38BDF8)
-                                    )
-                                }
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
 
-            // 4. Creative Screen Time Holographic Visualizer Matrix
+            // 3. Real Screen Time Usage & Daily Limit Summary Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.3f))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Daily Screen Time",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Text(
+                            text = "2h 45m / 4h 00m",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8)
+                        )
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { 0.68f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Color(0xFF2563EB),
+                        trackColor = Color(0xFF0F172A)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("1h 15m remaining today", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                        Text("Limit: 4 hours", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    }
+                }
+            }
+
+            // 4. App Limits & Restrictions Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
@@ -674,125 +513,164 @@ fun ParentDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Insights, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = strings.screenTimeVisualizer,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                        Text(
+                            text = strings.appLimitsTitle,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        TextButton(onClick = { showAddAppLimitDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add App", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
-                        Text("Daily Live HUD", fontSize = 11.sp, color = Color(0xFF94A3B8))
                     }
 
-                    // Bar 1: Gaming / Media
-                    ScreenTimeCategoryBar(
-                        icon = Icons.Default.SportsEsports,
-                        categoryName = strings.gamingCategory,
-                        timeUsed = "45m",
-                        timeLimit = "60m",
-                        progress = 0.75f,
-                        color = Color(0xFFF59E0B)
+                    // App Row 1: TikTok
+                    AppLimitRow(
+                        appName = "TikTok",
+                        packageName = "com.zhiliaoapp.musically",
+                        usage = "25m / 30m daily limit",
+                        isBlocked = false,
+                        onBlockChange = { isBlocked ->
+                            val action = JsonObject().apply {
+                                addProperty("type", "SetAppLimit")
+                                val p = JsonObject().apply {
+                                    addProperty("package_name", "com.zhiliaoapp.musically")
+                                    addProperty("app_name", "TikTok")
+                                    addProperty("daily_limit_minutes", 30)
+                                    addProperty("is_blocked", isBlocked)
+                                }
+                                add("payload", p)
+                            }
+                            sendCommand(action.toString(), if (isBlocked) "Block TikTok" else "Unblock TikTok")
+                        }
                     )
 
-                    // Bar 2: Study / Educational
-                    ScreenTimeCategoryBar(
-                        icon = Icons.Default.Book,
-                        categoryName = strings.studyCategory,
-                        timeUsed = "1h 20m",
-                        timeLimit = "Unlimited",
-                        progress = 0.40f,
-                        color = Color(0xFF10B981)
+                    // App Row 2: YouTube
+                    AppLimitRow(
+                        appName = "YouTube",
+                        packageName = "com.google.android.youtube",
+                        usage = "45m / 1h daily limit",
+                        isBlocked = false,
+                        onBlockChange = { isBlocked ->
+                            val action = JsonObject().apply {
+                                addProperty("type", "SetAppLimit")
+                                val p = JsonObject().apply {
+                                    addProperty("package_name", "com.google.android.youtube")
+                                    addProperty("app_name", "YouTube")
+                                    addProperty("daily_limit_minutes", 60)
+                                    addProperty("is_blocked", isBlocked)
+                                }
+                                add("payload", p)
+                            }
+                            sendCommand(action.toString(), if (isBlocked) "Block YouTube" else "Unblock YouTube")
+                        }
                     )
 
-                    // Bar 3: Social & Messaging
-                    ScreenTimeCategoryBar(
-                        icon = Icons.Default.Forum,
-                        categoryName = strings.socialCategory,
-                        timeUsed = "25m",
-                        timeLimit = "45m",
-                        progress = 0.55f,
-                        color = Color(0xFFA78BFA)
+                    // App Row 3: Roblox / Games
+                    AppLimitRow(
+                        appName = "Roblox",
+                        packageName = "com.roblox.client",
+                        usage = "45m / 45m (Limit Reached)",
+                        isBlocked = true,
+                        onBlockChange = { isBlocked ->
+                            val action = JsonObject().apply {
+                                addProperty("type", "SetAppLimit")
+                                val p = JsonObject().apply {
+                                    addProperty("package_name", "com.roblox.client")
+                                    addProperty("app_name", "Roblox")
+                                    addProperty("daily_limit_minutes", 45)
+                                    addProperty("is_blocked", isBlocked)
+                                }
+                                add("payload", p)
+                            }
+                            sendCommand(action.toString(), if (isBlocked) "Block Roblox" else "Unblock Roblox")
+                        }
                     )
                 }
             }
 
-            // 5. Bedtime Schedules & App Quotas Grid
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Bedtime Card (Amethyst Theme)
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showAddScheduleDialog = true },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    border = BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.4f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFF4C1D95)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Bedtime, contentDescription = null, tint = Color(0xFFC4B5FD), modifier = Modifier.size(18.dp))
-                            }
-                            Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(20.dp))
-                        }
-                        Text(strings.bedtimeSchedulesTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                        Text("21:30 - 06:00", fontSize = 11.sp, color = Color(0xFFA78BFA), fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                // App Limits Card (Amber Flare Theme)
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showAddAppLimitDialog = true },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFF78350F)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.HourglassTop, contentDescription = null, tint = Color(0xFFFDE68A), modifier = Modifier.size(18.dp))
-                            }
-                            Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
-                        }
-                        Text(strings.appLimitsTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                        Text("TikTok, Games: 30m", fontSize = 11.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-
-            // 6. Next-Gen In-App Auto-Update & Maintenance Pod
+            // 5. Schedules & Downtime Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = strings.bedtimeSchedulesTitle,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        TextButton(onClick = { showAddScheduleDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("New Schedule", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Schedule Row 1: Bedtime
+                    ScheduleRow(
+                        title = "Bedtime Routine",
+                        timeRange = "21:30 → 06:00 (Every Day)",
+                        isEnabled = true,
+                        onToggle = { isEnabled ->
+                            val action = JsonObject().apply {
+                                addProperty("type", "SetBedtimeSchedule")
+                                val p = JsonObject().apply {
+                                    addProperty("schedule_id", "bedtime_main")
+                                    addProperty("name", "Bedtime Routine")
+                                    addProperty("days_of_week", if (isEnabled) 127 else 0)
+                                    addProperty("start_time", "21:30")
+                                    addProperty("end_time", "06:00")
+                                    addProperty("mode", "LOCK_ALL")
+                                }
+                                add("payload", p)
+                            }
+                            sendCommand(action.toString(), if (isEnabled) "Enable Bedtime" else "Disable Bedtime")
+                        }
+                    )
+
+                    // Schedule Row 2: Study Hours
+                    ScheduleRow(
+                        title = "Study Time",
+                        timeRange = "18:00 → 20:00 (Mon - Fri)",
+                        isEnabled = true,
+                        onToggle = { isEnabled ->
+                            val action = JsonObject().apply {
+                                addProperty("type", "SetBedtimeSchedule")
+                                val p = JsonObject().apply {
+                                    addProperty("schedule_id", "study_main")
+                                    addProperty("name", "Study Time")
+                                    addProperty("days_of_week", if (isEnabled) 31 else 0)
+                                    addProperty("start_time", "18:00")
+                                    addProperty("end_time", "20:00")
+                                    addProperty("mode", "BLOCK_ENTERTAINMENT")
+                                }
+                                add("payload", p)
+                            }
+                            sendCommand(action.toString(), if (isEnabled) "Enable Study Mode" else "Disable Study Mode")
+                        }
+                    )
+                }
+            }
+
+            // 6. Real Production In-App Auto-Updater Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color(0xFF334155))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
@@ -803,12 +681,12 @@ fun ParentDashboardScreen(
                         Column {
                             Text(
                                 text = strings.autoUpdateTitle,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "${strings.version} $parentVersionName (${strings.build} $parentVersionCode)",
+                                text = "${strings.version} $parentVersionName (Build $parentVersionCode)",
                                 fontSize = 12.sp,
                                 color = Color(0xFF94A3B8)
                             )
@@ -851,14 +729,14 @@ fun ParentDashboardScreen(
                                 }
                             },
                             enabled = !isCheckingParentUpdate,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                         ) {
                             if (isCheckingParentUpdate) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
                                 Spacer(modifier = Modifier.width(6.dp))
                             } else {
-                                Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(strings.checkUpdate, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -866,15 +744,15 @@ fun ParentDashboardScreen(
                     }
 
                     parentUpdateStatusMsg?.let { msg ->
-                        Text(text = msg, fontSize = 12.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Medium)
+                        Text(text = msg, fontSize = 12.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Medium)
                     }
 
                     // Live Download progress card if update found
                     parentUpdateInfo?.let { info ->
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF070B12),
-                            border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0F172A),
+                            border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -887,7 +765,7 @@ fun ParentDashboardScreen(
                                         text = strings.newUpdateFoundMsg.format(info.versionName),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF38BDF8)
+                                        color = Color(0xFF60A5FA)
                                     )
                                     Text("v${info.versionName}", color = Color(0xFF94A3B8), fontSize = 12.sp)
                                 }
@@ -904,14 +782,14 @@ fun ParentDashboardScreen(
                                             .fillMaxWidth()
                                             .height(8.dp)
                                             .clip(RoundedCornerShape(4.dp)),
-                                        color = Color(0xFF38BDF8),
+                                        color = Color(0xFF2563EB),
                                         trackColor = Color(0xFF1E293B)
                                     )
                                     Text(
                                         text = strings.downloadingProgress.format(dlMb, totMb, prog),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF38BDF8)
+                                        color = Color(0xFF60A5FA)
                                     )
                                 }
 
@@ -935,10 +813,10 @@ fun ParentDashboardScreen(
                                             }
                                         }
                                     },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = parentDownloadStats == null,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                                 ) {
                                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -952,7 +830,7 @@ fun ParentDashboardScreen(
         }
     }
 
-    // Creative Lock Duration Dialog
+    // Lock Duration Dialog
     if (showLockDurationDialog) {
         AlertDialog(
             onDismissRequest = { showLockDurationDialog = false },
@@ -989,8 +867,8 @@ fun ParentDashboardScreen(
                                     sendCommand(action.toString(), "Lock ($label)")
                                     showLockDurationDialog = false
                                 },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF1E293B),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF0F172A),
                             border = BorderStroke(1.dp, Color(0xFF334155))
                         ) {
                             Box(modifier = Modifier.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
@@ -999,7 +877,7 @@ fun ParentDashboardScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(label, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 13.sp)
+                                    Text(label, fontWeight = FontWeight.Medium, color = Color.White, fontSize = 13.sp)
                                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                                 }
                             }
@@ -1014,13 +892,13 @@ fun ParentDashboardScreen(
         )
     }
 
-    // Creative Settings Dialog
+    // Telegram Settings Dialog
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(strings.telegramConfigTitle, fontWeight = FontWeight.Bold)
                 }
@@ -1036,7 +914,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.botTokenLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     OutlinedTextField(
                         value = chatId,
@@ -1047,15 +925,15 @@ fun ParentDashboardScreen(
                         label = { Text(strings.chatIdLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showSettingsDialog = false },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                 ) {
                     Text(strings.saveAndClose, fontWeight = FontWeight.Bold)
                 }
@@ -1080,7 +958,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.scheduleNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     OutlinedTextField(
                         value = startTime,
@@ -1088,7 +966,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.startTimeLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     OutlinedTextField(
                         value = endTime,
@@ -1096,7 +974,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.endTimeLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                 }
             },
@@ -1118,8 +996,8 @@ fun ParentDashboardScreen(
                         sendCommand(action.toString(), "Set $schedName Schedule")
                         showAddScheduleDialog = false
                     },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                 ) {
                     Text(strings.sendPolicy, fontWeight = FontWeight.Bold)
                 }
@@ -1148,7 +1026,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.packageNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     OutlinedTextField(
                         value = appName,
@@ -1156,7 +1034,7 @@ fun ParentDashboardScreen(
                         label = { Text(strings.appNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     OutlinedTextField(
                         value = limitMins,
@@ -1164,14 +1042,14 @@ fun ParentDashboardScreen(
                         label = { Text(strings.dailyLimitLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(strings.blockCompletely, fontWeight = FontWeight.SemiBold)
+                        Text(strings.blockCompletely, fontWeight = FontWeight.Medium)
                         Switch(checked = isBlocked, onCheckedChange = { isBlocked = it })
                     }
                 }
@@ -1192,8 +1070,8 @@ fun ParentDashboardScreen(
                         sendCommand(action.toString(), "Set Limit for $appName")
                         showAddAppLimitDialog = false
                     },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                 ) {
                     Text(strings.sendLimit, fontWeight = FontWeight.Bold)
                 }
@@ -1204,48 +1082,23 @@ fun ParentDashboardScreen(
         )
     }
 
-    // Creative Update Available Alert Dialog
+    // Update Available Dialog
     if (showUpdatePopupDialog && parentUpdateInfo != null) {
         val info = parentUpdateInfo!!
         AlertDialog(
             onDismissRequest = { showUpdatePopupDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0284C7)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(strings.newUpdateFoundMsg.format(info.versionName), fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(strings.newUpdateFoundMsg.format(info.versionName), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(
-                        color = Color(0xFF0F172A),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color(0xFF334155))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("SafeShield v${info.versionName}", fontWeight = FontWeight.ExtraBold, color = Color(0xFF38BDF8))
-                            Text("${strings.build} ${info.versionCode}", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                        }
-                    }
-
                     Text(strings.whatsNew, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                     Text(
-                        text = info.changelog.ifBlank { "• Performance optimizations and security enhancements\n• Ultra-fast responsive UI" },
+                        text = info.changelog.ifBlank { "• Real-world Production UI Redesign\n• Performance optimizations and stability improvements" },
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1)
                     )
@@ -1259,14 +1112,14 @@ fun ParentDashboardScreen(
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp)),
-                            color = Color(0xFF38BDF8),
+                            color = Color(0xFF2563EB),
                             trackColor = Color(0xFF1E293B)
                         )
                         Text(
                             strings.downloadingProgress.format(dlMb, totMb, prog),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF38BDF8)
+                            color = Color(0xFF60A5FA)
                         )
                     }
                 }
@@ -1293,8 +1146,8 @@ fun ParentDashboardScreen(
                         }
                     },
                     enabled = parentDownloadStats == null,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
                 }
@@ -1309,70 +1162,108 @@ fun ParentDashboardScreen(
 }
 
 /**
- * Creative Visualizer Category Bar
+ * Clean Real-World App Limit Row
  */
 @Composable
-fun ScreenTimeCategoryBar(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    categoryName: String,
-    timeUsed: String,
-    timeLimit: String,
-    progress: Float,
-    color: Color
+fun AppLimitRow(
+    appName: String,
+    packageName: String,
+    usage: String,
+    isBlocked: Boolean,
+    onBlockChange: (Boolean) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF0F172A),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = categoryName, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF1E293B),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Apps, contentDescription = null, tint = Color(0xFF60A5FA), modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(text = appName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = usage, fontSize = 11.sp, color = if (isBlocked) Color(0xFFEF4444) else Color(0xFF94A3B8))
+                }
             }
-            Text(text = "$timeUsed / $timeLimit", fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
-        }
 
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(7.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = color,
-            trackColor = Color(0xFF1E293B)
-        )
+            Switch(
+                checked = !isBlocked,
+                onCheckedChange = { isAllowed -> onBlockChange(!isAllowed) }
+            )
+        }
     }
 }
 
 /**
- * Micro Telemetry Badge
+ * Clean Real-World Schedule Row
  */
 @Composable
-fun TelemetryBadge(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color
+fun ScheduleRow(
+    title: String,
+    timeRange: String,
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF1E293B).copy(alpha = 0.6f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+        color = Color(0xFF0F172A),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = label, fontSize = 10.sp, color = Color(0xFFCBD5E1), fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF1E293B),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Schedule, contentDescription = null, tint = Color(0xFFA78BFA), modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = timeRange, fontSize = 11.sp, color = Color(0xFF94A3B8))
+                }
+            }
+
+            var checked by remember { mutableStateOf(isEnabled) }
+            Switch(
+                checked = checked,
+                onCheckedChange = {
+                    checked = it
+                    onToggle(it)
+                }
+            )
         }
     }
 }
 
 /**
- * Modern Segmented Language Slider / Pill Toggle (🇬🇧 EN / 🇰🇭 ខ្មែរ)
+ * Real-World Segmented Language Switcher (🇬🇧 EN / 🇰🇭 ខ្មែរ)
  */
 @Composable
 fun LanguageSlider(
@@ -1384,9 +1275,9 @@ fun LanguageSlider(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF111827),
+        color = Color(0xFF0F172A),
         border = BorderStroke(1.dp, Color(0xFF334155)),
-        modifier = modifier.height(34.dp)
+        modifier = modifier.height(32.dp)
     ) {
         Row(
             modifier = Modifier.padding(2.dp),
@@ -1396,14 +1287,14 @@ fun LanguageSlider(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (!isKhmer) Color(0xFF0284C7) else Color.Transparent)
+                    .background(if (!isKhmer) Color(0xFF2563EB) else Color.Transparent)
                     .clickable { onLanguageChange(AppLanguage.EN) }
-                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "🇬🇧", fontSize = 11.sp)
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "EN",
                         fontSize = 11.sp,
@@ -1419,14 +1310,14 @@ fun LanguageSlider(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (isKhmer) Color(0xFF0284C7) else Color.Transparent)
+                    .background(if (isKhmer) Color(0xFF2563EB) else Color.Transparent)
                     .clickable { onLanguageChange(AppLanguage.KM) }
-                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "🇰🇭", fontSize = 11.sp)
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "ខ្មែរ",
                         fontSize = 11.sp,

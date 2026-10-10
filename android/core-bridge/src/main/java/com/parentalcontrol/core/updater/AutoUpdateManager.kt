@@ -84,7 +84,9 @@ object AutoUpdateManager {
             val changelog = root.get("body")?.asString.orEmpty()
             val versionCode = parseVersionNameToCode(versionName)
 
-            val targetApkName = if (isChildApp) "Child_SafeShield.apk" else "Parent_SafeShield.apk"
+            val basePrefix = if (isChildApp) "Child_SafeShield" else "Parent_SafeShield"
+            val versionedApkName = "${basePrefix}_$versionName.apk"
+            val genericApkName = "$basePrefix.apk"
             var apkDownloadUrl: String? = null
 
             val assets = root.getAsJsonArray("assets")
@@ -92,7 +94,8 @@ object AutoUpdateManager {
                 for (elem in assets) {
                     val assetObj = elem.asJsonObject
                     val name = assetObj.get("name")?.asString.orEmpty()
-                    if (name.equals(targetApkName, ignoreCase = true) ||
+                    if (name.equals(versionedApkName, ignoreCase = true) ||
+                        name.equals(genericApkName, ignoreCase = true) ||
                         (isChildApp && name.contains("child", ignoreCase = true)) ||
                         (!isChildApp && name.contains("parent", ignoreCase = true))) {
                         apkDownloadUrl = assetObj.get("browser_download_url")?.asString
@@ -103,7 +106,7 @@ object AutoUpdateManager {
 
             // Fallback to raw repository CDN if release asset is not directly uploaded
             if (apkDownloadUrl.isNullOrBlank()) {
-                apkDownloadUrl = "https://raw.githubusercontent.com/$owner/$repo/main/apks/$targetApkName"
+                apkDownloadUrl = "https://raw.githubusercontent.com/$owner/$repo/main/apks/$genericApkName"
             }
 
             val updateInfo = UpdateInfo(
