@@ -468,15 +468,19 @@ fun ChildDashboardScreen(
                             Button(
                                 onClick = {
                                     coroutineScope.launch {
-                                        downloadProgress = 0
+                                        downloadProgress = 1
                                         val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
                                             downloadProgress = p
                                         }
                                         if (dl.isSuccess) {
                                             val file = dl.getOrThrow()
+                                            downloadProgress = 100
                                             com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                         } else {
-                                            updateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
+                                            downloadProgress = null
+                                            val err = dl.exceptionOrNull()?.message ?: "Download failed"
+                                            updateStatusMsg = strings.updateFailed.format(err)
+                                            android.widget.Toast.makeText(context, updateStatusMsg, android.widget.Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },

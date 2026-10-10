@@ -5,13 +5,11 @@ import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,9 +25,10 @@ object AutoUpdateManager {
     private const val TAG = "AutoUpdateManager"
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     fun getCurrentVersionCode(context: Context): Int {
@@ -52,31 +51,6 @@ object AutoUpdateManager {
             pInfo.versionName ?: "1.0"
         } catch (e: Exception) {
             "1.0"
-        }
-    }
-
-    /**
-     * Parse update metadata from a remote JSON endpoint.
-     * Schema example:
-     * {
-     *   "child": { "versionCode": 2, "versionName": "1.1", "apkUrl": "https://...", "changelog": "..." },
-     *   "parent": { "versionCode": 2, "versionName": "1.1", "apkUrl": "https://...", "changelog": "..." }
-     * }
-     */
-    suspend fun checkUpdateFromJsonUrl(url: String, isChildApp: Boolean): Result<UpdateInfo?> = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder().url(url).build()
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("HTTP error ${response.code}"))
-            }
-
-            val body = response.body?.string().orEmpty()
-            val parsed = parseUpdateJson(body, isChildApp)
-            Result.success(parsed)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to check update from URL: $url", e)
-            Result.failure(e)
         }
     }
 
@@ -127,8 +101,9 @@ object AutoUpdateManager {
                 }
             }
 
+            // Fallback to raw repository CDN if release asset is not directly uploaded
             if (apkDownloadUrl.isNullOrBlank()) {
-                apkDownloadUrl = "https://github.com/$owner/$repo/releases/download/$tagName/$targetApkName"
+                apkDownloadUrl = "https://raw.githubusercontent.com/$owner/$repo/main/apks/$targetApkName"
             }
 
             val updateInfo = UpdateInfo(
@@ -172,7 +147,10 @@ object AutoUpdateManager {
 
         try {
             val url = "https://api.telegram.org/bot$botToken/getUpdates?limit=20"
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "SafeShield-OTA-Updater")
+                .build()
             val response = httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("Telegram API HTTP ${response.code}"))
@@ -218,29 +196,6 @@ object AutoUpdateManager {
         }
     }
 
-    private fun parseUpdateJson(jsonStr: String, isChildApp: Boolean): UpdateInfo? {
-        val root = JsonParser.parseString(jsonStr).asJsonObject
-        val key = if (isChildApp) "child" else "parent"
-        if (!root.has(key)) return null
-
-        val target = root.getAsJsonObject(key)
-        val vCode = target.get("versionCode")?.asInt ?: 1
-        val vName = target.get("versionName")?.asString ?: "1.0"
-        val apkUrl = target.get("apkUrl")?.asString ?: return null
-        val changelog = target.get("changelog")?.asString.orEmpty()
-        val isMandatory = target.get("isMandatory")?.asBoolean ?: false
-        val sha256 = target.get("sha256")?.asString
-
-        return UpdateInfo(
-            versionCode = vCode,
-            versionName = vName,
-            apkUrl = apkUrl,
-            changelog = changelog,
-            isMandatory = isMandatory,
-            sha256 = sha256
-        )
-    }
-
     private fun parseOtaPayload(jsonStr: String, isChildApp: Boolean): UpdateInfo? {
         return try {
             val root = JsonParser.parseString(jsonStr).asJsonObject
@@ -271,6 +226,7 @@ object AutoUpdateManager {
 
     /**
      * Download the APK with progress streaming callback (0 - 100%).
+     * Supports automatic fallback to raw GitHub repository CDN if release URL 404s.
      */
     suspend fun downloadApk(
         context: Context,
@@ -278,46 +234,80 @@ object AutoUpdateManager {
         onProgress: (percent: Int) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(apkUrl).build()
-            val response = httpClient.newCall(request).execute()
+            onProgress(1) // Immediate user feedback
 
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Download failed HTTP ${response.code}"))
+            val urlsToTry = mutableListOf(apkUrl)
+            if (apkUrl.contains("github.com", ignoreCase = true) && apkUrl.contains("releases/download", ignoreCase = true)) {
+                val apkName = if (apkUrl.contains("child", ignoreCase = true)) "Child_SafeShield.apk" else "Parent_SafeShield.apk"
+                urlsToTry.add("https://raw.githubusercontent.com/kktai-nph/GuardCore/main/apks/$apkName")
             }
 
-            val body = response.body ?: return@withContext Result.failure(Exception("Empty response body"))
-            val totalBytes = body.contentLength()
+            var lastException: Exception? = null
 
-            val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
-            val destFile = File(downloadDir, "update_${System.currentTimeMillis()}.apk")
+            for (currentUrl in urlsToTry) {
+                try {
+                    Log.i(TAG, "Attempting APK download from: $currentUrl")
+                    val request = Request.Builder()
+                        .url(currentUrl)
+                        .header("User-Agent", "SafeShield-OTA-Updater")
+                        .header("Accept", "*/*")
+                        .build()
 
-            body.byteStream().use { input: InputStream ->
-                FileOutputStream(destFile).use { output ->
-                    val buffer = ByteArray(8 * 1024)
-                    var bytesRead: Int
-                    var totalRead = 0L
-                    var lastReportedPercent = 0
+                    val response = httpClient.newCall(request).execute()
+                    if (!response.isSuccessful) {
+                        response.close()
+                        lastException = Exception("HTTP ${response.code} from $currentUrl")
+                        continue
+                    }
 
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalRead += bytesRead
+                    val body = response.body ?: throw Exception("Empty response body from $currentUrl")
+                    var totalBytes = body.contentLength()
+                    if (totalBytes <= 0) {
+                        totalBytes = 27 * 1024 * 1024L // Approximate ~27MB default
+                    }
 
-                        if (totalBytes > 0) {
-                            val percent = ((totalRead * 100) / totalBytes).toInt()
-                            if (percent != lastReportedPercent) {
-                                lastReportedPercent = percent
-                                onProgress(percent)
+                    val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+                    if (!downloadDir.exists()) downloadDir.mkdirs()
+
+                    val destFile = File(downloadDir, "update_${System.currentTimeMillis()}.apk")
+
+                    body.byteStream().use { input: InputStream ->
+                        FileOutputStream(destFile).use { output ->
+                            val buffer = ByteArray(32 * 1024)
+                            var bytesRead: Int
+                            var totalRead = 0L
+                            var lastReportedPercent = 1
+
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                output.write(buffer, 0, bytesRead)
+                                totalRead += bytesRead
+
+                                val percent = ((totalRead * 100) / totalBytes).toInt().coerceIn(1, 99)
+                                if (percent != lastReportedPercent) {
+                                    lastReportedPercent = percent
+                                    onProgress(percent)
+                                }
                             }
+                            output.flush()
                         }
                     }
-                    output.flush()
+
+                    if (destFile.exists() && destFile.length() > 500 * 1024) {
+                        onProgress(100)
+                        Log.i(TAG, "Successfully downloaded APK: ${destFile.absolutePath} (${destFile.length()} bytes)")
+                        return@withContext Result.success(destFile)
+                    } else {
+                        throw Exception("Downloaded file is incomplete (${destFile.length()} bytes)")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Download attempt failed for $currentUrl: ${e.message}")
+                    lastException = e
                 }
             }
 
-            onProgress(100)
-            Result.success(destFile)
+            Result.failure(lastException ?: Exception("Download failed"))
         } catch (e: Exception) {
-            Log.e(TAG, "Download APK failed", e)
+            Log.e(TAG, "Download APK failed entirely", e)
             Result.failure(e)
         }
     }
@@ -345,7 +335,6 @@ object AutoUpdateManager {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Install APK failed", e)
-            // Fallback to standard installer if silent failed
             try {
                 launchStandardInstaller(context, apkFile)
                 Result.success(false)
@@ -392,7 +381,7 @@ object AutoUpdateManager {
 
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(contentUri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 
         context.startActivity(intent)

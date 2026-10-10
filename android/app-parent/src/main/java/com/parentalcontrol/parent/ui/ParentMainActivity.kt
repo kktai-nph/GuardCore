@@ -598,15 +598,19 @@ fun ParentDashboardScreen(
                                 Button(
                                     onClick = {
                                         coroutineScope.launch {
-                                            parentDownloadProgress = 0
+                                            parentDownloadProgress = 1
                                             val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
                                                 parentDownloadProgress = p
                                             }
                                             if (dl.isSuccess) {
                                                 val file = dl.getOrThrow()
+                                                parentDownloadProgress = 100
                                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                             } else {
-                                                parentUpdateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
+                                                parentDownloadProgress = null
+                                                val err = dl.exceptionOrNull()?.message ?: "Download failed"
+                                                parentUpdateStatusMsg = strings.updateFailed.format(err)
+                                                Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
                                             }
                                         }
                                     },
@@ -935,15 +939,19 @@ fun ParentDashboardScreen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            parentDownloadProgress = 0
+                            parentDownloadProgress = 1
                             val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p ->
                                 parentDownloadProgress = p
                             }
                             if (dl.isSuccess) {
                                 val file = dl.getOrThrow()
+                                parentDownloadProgress = 100
                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                             } else {
-                                parentUpdateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
+                                parentDownloadProgress = null
+                                val err = dl.exceptionOrNull()?.message ?: "Download failed"
+                                parentUpdateStatusMsg = strings.updateFailed.format(err)
+                                Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
                             }
                         }
                     },
