@@ -133,7 +133,12 @@ data class AppStrings(
     val terminalLogs: String,
     val offlineSentinel: String,
     val kernelStatus: String,
-    val quickStats: String
+    val quickStats: String,
+
+    // Installer specific
+    val installNow: String,
+    val downloadCompleteMsg: String,
+    val allowInstallPrompt: String
 )
 
 object Localization {
@@ -230,7 +235,11 @@ object Localization {
         terminalLogs = "Live Kernel Telemetry",
         offlineSentinel = "100% Offline Hardware Sentinel",
         kernelStatus = "Kernel: Active & Protected",
-        quickStats = "Live Telemetry Overview"
+        quickStats = "Live Telemetry Overview",
+
+        installNow = "Install Update Now",
+        downloadCompleteMsg = "Download 100% complete! Opening installer...",
+        allowInstallPrompt = "Please enable 'Allow from this source' in Settings and return."
     )
 
     val KM = AppStrings(
@@ -326,7 +335,11 @@ object Localization {
         terminalLogs = "ទិន្នន័យ Telemetry ផ្ទាល់",
         offlineSentinel = "ដំណើរការការពារ ១០០% លើម៉ាស៊ីន (Offline)",
         kernelStatus = "Kernel: សកម្ម & ការពារខ្ពស់",
-        quickStats = "ព័ត៌មាន Telemetry សរុប"
+        quickStats = "ព័ត៌មាន Telemetry សរុប",
+
+        installNow = "ដំឡើងកំណែថ្មីឥឡូវនេះ",
+        downloadCompleteMsg = "ទាញយកជោគជ័យ ១០០%! កំពុងបើកផ្ទាំងដំឡើង...",
+        allowInstallPrompt = "សូមបើក 'អនុញ្ញាតពីប្រភពនេះ' ក្នុង Settings រួចត្រឡប់មកវិញ"
     )
 
     fun getStrings(lang: AppLanguage): AppStrings {

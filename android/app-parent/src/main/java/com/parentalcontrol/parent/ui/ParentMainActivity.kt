@@ -25,6 +25,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.google.gson.JsonObject
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -35,6 +38,7 @@ import com.parentalcontrol.parent.engine.PairedChild
 import com.parentalcontrol.parent.engine.ParentEngineHolder
 import com.parentalcontrol.parent.telegram.TelegramDispatcher
 import kotlinx.coroutines.launch
+import java.io.File
 
 class ParentMainActivity : ComponentActivity() {
 
@@ -111,8 +115,28 @@ fun ParentDashboardScreen(
     var parentUpdateInfo by remember { mutableStateOf<com.parentalcontrol.core.updater.UpdateInfo?>(null) }
     var parentDownloadStats by remember { mutableStateOf<Triple<Int, Double, Double>?>(null) }
     var parentUpdateStatusMsg by remember { mutableStateOf<String?>(null) }
+    var downloadedParentApkFile by remember { mutableStateOf<File?>(null) }
+    var hasInstallPermission by remember { mutableStateOf(com.parentalcontrol.core.updater.AutoUpdateManager.canRequestPackageInstalls(context)) }
     val parentVersionName = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionName(context) }
     val parentVersionCode = remember { com.parentalcontrol.core.updater.AutoUpdateManager.getCurrentVersionCode(context) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasInstallPermission = com.parentalcontrol.core.updater.AutoUpdateManager.canRequestPackageInstalls(context)
+                downloadedParentApkFile?.let { file ->
+                    if (file.exists() && hasInstallPermission) {
+                        com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val engine = remember { ParentEngineHolder.getEngine(context) }
 
@@ -793,35 +817,91 @@ fun ParentDashboardScreen(
                                     )
                                 }
 
-                                Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            parentDownloadStats = Triple(1, 0.1, 27.0)
-                                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
-                                                parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
-                                            }
-                                            if (dl.isSuccess) {
-                                                val file = dl.getOrThrow()
-                                                val sizeMb = file.length() / (1024.0 * 1024.0)
-                                                parentDownloadStats = Triple(100, sizeMb, sizeMb)
-                                                com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
-                                            } else {
-                                                parentDownloadStats = null
-                                                val err = dl.exceptionOrNull()?.message ?: "Download failed"
-                                                parentUpdateStatusMsg = strings.updateFailed.format(err)
-                                                Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
+                                if (downloadedParentApkFile != null) {
+                                    if (!hasInstallPermission) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF78350F).copy(alpha = 0.5f),
+                                            border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = strings.allowInstallPrompt,
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFFFDE68A),
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                FilledTonalButton(
+                                                    onClick = { com.parentalcontrol.core.updater.AutoUpdateManager.openInstallPermissionSettings(context) },
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text("Settings", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                }
                                             }
                                         }
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = parentDownloadStats == null,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
-                                ) {
-                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            downloadedParentApkFile?.let { file ->
+                                                val res = com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
+                                                if (res.isFailure) {
+                                                    Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(strings.installNow, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                parentDownloadStats = Triple(1, 0.1, 27.0)
+                                                val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
+                                                    parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
+                                                }
+                                                if (dl.isSuccess) {
+                                                    val file = dl.getOrThrow()
+                                                    val sizeMb = file.length() / (1024.0 * 1024.0)
+                                                    parentDownloadStats = Triple(100, sizeMb, sizeMb)
+                                                    downloadedParentApkFile = file
+                                                    parentUpdateStatusMsg = strings.downloadCompleteMsg
+                                                    val res = com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
+                                                    if (res.isFailure) {
+                                                        Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                                    }
+                                                } else {
+                                                    parentDownloadStats = null
+                                                    downloadedParentApkFile = null
+                                                    val err = dl.exceptionOrNull()?.message ?: "Download failed"
+                                                    parentUpdateStatusMsg = strings.updateFailed.format(err)
+                                                    Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = parentDownloadStats == null,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                                    ) {
+                                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
+                                    }
                                 }
+
                             }
                         }
                     }
@@ -1125,31 +1205,56 @@ fun ParentDashboardScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            parentDownloadStats = Triple(1, 0.1, 27.0)
-                            val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
-                                parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
+                if (downloadedParentApkFile != null) {
+                    Button(
+                        onClick = {
+                            downloadedParentApkFile?.let { file ->
+                                val res = com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
+                                if (res.isFailure) {
+                                    Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                }
                             }
-                            if (dl.isSuccess) {
-                                val file = dl.getOrThrow()
-                                val sizeMb = file.length() / (1024.0 * 1024.0)
-                                parentDownloadStats = Triple(100, sizeMb, sizeMb)
-                                com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
-                            } else {
-                                parentDownloadStats = null
-                                val err = dl.exceptionOrNull()?.message ?: "Download failed"
-                                parentUpdateStatusMsg = strings.updateFailed.format(err)
-                                Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(strings.installNow, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                parentDownloadStats = Triple(1, 0.1, 27.0)
+                                val dl = com.parentalcontrol.core.updater.AutoUpdateManager.downloadApk(context, info.apkUrl) { p, dlBytes, totBytes ->
+                                    parentDownloadStats = Triple(p, dlBytes / (1024.0 * 1024.0), totBytes / (1024.0 * 1024.0))
+                                }
+                                if (dl.isSuccess) {
+                                    val file = dl.getOrThrow()
+                                    val sizeMb = file.length() / (1024.0 * 1024.0)
+                                    parentDownloadStats = Triple(100, sizeMb, sizeMb)
+                                    downloadedParentApkFile = file
+                                    parentUpdateStatusMsg = strings.downloadCompleteMsg
+                                    val res = com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
+                                    if (res.isFailure) {
+                                        Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    parentDownloadStats = null
+                                    downloadedParentApkFile = null
+                                    val err = dl.exceptionOrNull()?.message ?: "Download failed"
+                                    parentUpdateStatusMsg = strings.updateFailed.format(err)
+                                    Toast.makeText(context, parentUpdateStatusMsg, Toast.LENGTH_LONG).show()
+                                }
                             }
-                        }
-                    },
-                    enabled = parentDownloadStats == null,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
+                        },
+                        enabled = parentDownloadStats == null,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(strings.downloadInstallNow, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {

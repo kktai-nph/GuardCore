@@ -315,6 +315,42 @@ object AutoUpdateManager {
     }
 
     /**
+     * Check if the app has permission to install unknown apps (Android 8.0+)
+     */
+    fun canRequestPackageInstalls(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+    }
+
+    /**
+     * Open Settings screen for user to toggle "Allow from this source"
+     */
+    fun openInstallPermissionSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed opening specific unknown app settings, falling back to security settings", e)
+                try {
+                    val fallbackIntent = Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(fallbackIntent)
+                } catch (fallbackEx: Exception) {
+                    Log.e(TAG, "Failed opening settings", fallbackEx)
+                }
+            }
+        }
+    }
+
+    /**
      * Install APK:
      * - If Device Owner: Silent background install via PackageInstaller.
      * - If Standard: Triggers system package installer via FileProvider.
@@ -323,6 +359,12 @@ object AutoUpdateManager {
      */
     fun installApk(context: Context, apkFile: File): Result<Boolean> {
         return try {
+            if (!apkFile.exists() || apkFile.length() < 100 * 1024) {
+                return Result.failure(Exception("APK file is missing or incomplete: ${apkFile.absolutePath}"))
+            }
+
+            apkFile.setReadable(true, false)
+
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
             val isDeviceOwner = dpm?.isDeviceOwnerApp(context.packageName) == true
 
@@ -337,12 +379,7 @@ object AutoUpdateManager {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Install APK failed", e)
-            try {
-                launchStandardInstaller(context, apkFile)
-                Result.success(false)
-            } catch (fallbackEx: Exception) {
-                Result.failure(fallbackEx)
-            }
+            Result.failure(e)
         }
     }
 
@@ -377,25 +414,70 @@ object AutoUpdateManager {
         session.close()
     }
 
-    private fun launchStandardInstaller(context: Context, apkFile: File) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-            Log.i(TAG, "Install permission not granted, opening Settings")
-            val settingsIntent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(settingsIntent)
-            return
+    fun launchStandardInstaller(context: Context, apkFile: File) {
+        if (!apkFile.exists() || apkFile.length() == 0L) {
+            throw IllegalStateException("APK file does not exist: ${apkFile.absolutePath}")
         }
+
+        apkFile.setReadable(true, false)
 
         val authority = "${context.packageName}.fileprovider"
         val contentUri: Uri = FileProvider.getUriForFile(context, authority, apkFile)
 
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(contentUri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        // If unknown sources permission is not granted on Android 8+, open settings so user can toggle
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            Log.i(TAG, "Install permission not granted, opening Settings")
+            openInstallPermissionSettings(context)
         }
 
-        context.startActivity(intent)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(contentUri, "application/vnd.android.package-archive")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+            putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
+        }
+
+        // Grant URI read permission to all potential installer intent receivers
+        val resInfoList = context.packageManager.queryIntentActivities(intent, 0)
+        for (resolveInfo in resInfoList) {
+            val packageName = resolveInfo.activityInfo?.packageName
+            if (!packageName.isNullOrBlank()) {
+                try {
+                    context.grantUriPermission(packageName, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not grant URI permission to $packageName", e)
+                }
+            }
+        }
+
+        // Explicitly grant to common system package installer packages
+        listOf(
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.google.android.permissioncontroller",
+            "com.android.permissioncontroller",
+            "com.android.settings"
+        ).forEach { pkg ->
+            try {
+                context.grantUriPermission(pkg, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+        }
+
+        try {
+            context.startActivity(intent)
+            Log.i(TAG, "Successfully started system package installer intent")
+        } catch (e: Exception) {
+            Log.w(TAG, "ACTION_VIEW failed, attempting ACTION_INSTALL_PACKAGE fallback", e)
+            val fallbackIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                setDataAndType(contentUri, "application/vnd.android.package-archive")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+            context.startActivity(fallbackIntent)
+        }
     }
 }
