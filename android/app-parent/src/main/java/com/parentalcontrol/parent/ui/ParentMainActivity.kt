@@ -6,7 +6,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +28,9 @@ import androidx.compose.ui.unit.sp
 import com.google.gson.JsonObject
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.parentalcontrol.core.localization.AppLanguage
+import com.parentalcontrol.core.localization.LanguageManager
+import com.parentalcontrol.core.localization.Localization
 import com.parentalcontrol.parent.engine.PairedChild
 import com.parentalcontrol.parent.engine.ParentEngineHolder
 import com.parentalcontrol.parent.telegram.TelegramDispatcher
@@ -76,6 +81,9 @@ fun ParentDashboardScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+
+    var currentLang by remember { mutableStateOf(LanguageManager.getSavedLanguage(context)) }
+    val strings = remember(currentLang) { Localization.getStrings(currentLang) }
 
     var pairedChildren by remember { mutableStateOf(ParentEngineHolder.getPairedChildren(context)) }
     var selectedChild by remember { mutableStateOf(pairedChildren.firstOrNull()) }
@@ -159,12 +167,23 @@ fun ParentDashboardScreen(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("SafeShield Parent", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
-                            Text("Guard Core Sovereign Safety", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                            Text(strings.appTitleParent, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                            Text(strings.appSubtitleParent, fontSize = 11.sp, color = Color(0xFF94A3B8))
                         }
                     }
                 },
                 actions = {
+                    // Language Switcher Slider / Toggle
+                    LanguageSlider(
+                        currentLanguage = currentLang,
+                        onLanguageChange = { newLang ->
+                            currentLang = newLang
+                            LanguageManager.setSavedLanguage(context, newLang)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF94A3B8))
                     }
@@ -194,7 +213,7 @@ fun ParentDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Managed Devices",
+                            text = strings.managedDevices,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFE2E8F0)
@@ -225,7 +244,7 @@ fun ParentDashboardScreen(
                                                     pairingResult.outboundWireMessage
                                                 )
                                             }
-                                            Toast.makeText(context, "✓ Paired with ${newChild.childName}!", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, strings.pairedSuccess.format(newChild.childName), Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Invalid QR: ${e.message}", Toast.LENGTH_LONG).show()
@@ -238,13 +257,13 @@ fun ParentDashboardScreen(
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pair New Child", fontSize = 13.sp)
+                            Text(strings.pairNewChild, fontSize = 13.sp)
                         }
                     }
 
                     if (pairedChildren.isEmpty()) {
                         Text(
-                            text = "No child device paired yet. Tap 'Pair New Child' to scan child QR.",
+                            text = strings.noChildPaired,
                             color = Color(0xFFEF4444),
                             fontSize = 13.sp
                         )
@@ -274,7 +293,7 @@ fun ParentDashboardScreen(
                                                     ParentEngineHolder.removePairedChild(context, child.deviceId)
                                                     pairedChildren = ParentEngineHolder.getPairedChildren(context)
                                                     selectedChild = pairedChildren.firstOrNull()
-                                                    Toast.makeText(context, "Device un-paired", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, strings.deviceUnpaired, Toast.LENGTH_SHORT).show()
                                                 },
                                                 modifier = Modifier.size(16.dp)
                                             ) {
@@ -303,7 +322,7 @@ fun ParentDashboardScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Instant Device Controls",
+                        text = strings.instantControls,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -324,7 +343,7 @@ fun ParentDashboardScreen(
                         ) {
                             Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Lock Device", fontWeight = FontWeight.SemiBold)
+                            Text(strings.lockDevice, fontWeight = FontWeight.SemiBold)
                         }
 
                         Button(
@@ -343,13 +362,13 @@ fun ParentDashboardScreen(
                         ) {
                             Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Unlock", fontWeight = FontWeight.SemiBold)
+                            Text(strings.unlockDevice, fontWeight = FontWeight.SemiBold)
                         }
                     }
 
                     // Bonus Screen Time
                     Text(
-                        text = "Quick Bonus Screen Time",
+                        text = strings.bonusTimeTitle,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF94A3B8)
@@ -359,7 +378,7 @@ fun ParentDashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf(15 to "+15 min", 30 to "+30 min", 60 to "+1 hr", 120 to "+2 hr").forEach { (mins, label) ->
+                        listOf(15 to "+15m", 30 to "+30m", 60 to "+1h", 120 to "+2h").forEach { (mins, label) ->
                             OutlinedButton(
                                 onClick = {
                                     val action = JsonObject().apply {
@@ -396,7 +415,7 @@ fun ParentDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Bedtime & Study Schedules",
+                            text = strings.bedtimeSchedulesTitle,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -407,7 +426,7 @@ fun ParentDashboardScreen(
                     }
 
                     Text(
-                        text = "Enforced offline 100% on child device even if internet is disconnected.",
+                        text = strings.bedtimeSchedulesDesc,
                         fontSize = 12.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -427,7 +446,7 @@ fun ParentDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "App Daily Limits & Blocking",
+                            text = strings.appLimitsTitle,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -438,7 +457,7 @@ fun ParentDashboardScreen(
                     }
 
                     Text(
-                        text = "Set daily quotas for TikTok, YouTube, Games or block them completely.",
+                        text = strings.appLimitsDesc,
                         fontSize = 12.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -453,13 +472,13 @@ fun ParentDashboardScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Guard Core • Auto-Update & OTA",
+                        text = strings.autoUpdateTitle,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "Parent App Version: $parentVersionName (Build $parentVersionCode)",
+                        text = "${strings.version} $parentVersionName (${strings.build} $parentVersionCode)",
                         fontSize = 12.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -471,7 +490,7 @@ fun ParentDashboardScreen(
                         Button(
                             onClick = {
                                 isCheckingParentUpdate = true
-                                parentUpdateStatusMsg = "Checking GitHub Releases & Telegram for updates..."
+                                parentUpdateStatusMsg = strings.checkingUpdateMsg
                                 coroutineScope.launch {
                                     // 1. Check GitHub Releases
                                     val ghResult = com.parentalcontrol.core.updater.AutoUpdateManager.checkUpdateFromGitHub("kktai-nph", "GuardCore", isChildApp = false)
@@ -479,7 +498,7 @@ fun ParentDashboardScreen(
                                         val info = ghResult.getOrNull()!!
                                         if (info.versionCode > parentVersionCode) {
                                             parentUpdateInfo = info
-                                            parentUpdateStatusMsg = "New update available from GitHub: v${info.versionName}"
+                                            parentUpdateStatusMsg = strings.newUpdateFoundMsg.format(info.versionName)
                                             showUpdatePopupDialog = true
                                             isCheckingParentUpdate = false
                                             return@launch
@@ -493,7 +512,7 @@ fun ParentDashboardScreen(
                                             val info = tgResult.getOrNull()!!
                                             if (info.versionCode > parentVersionCode) {
                                                 parentUpdateInfo = info
-                                                parentUpdateStatusMsg = "New update available from Telegram: v${info.versionName}"
+                                                parentUpdateStatusMsg = strings.newUpdateFoundMsg.format(info.versionName)
                                                 showUpdatePopupDialog = true
                                                 isCheckingParentUpdate = false
                                                 return@launch
@@ -503,7 +522,7 @@ fun ParentDashboardScreen(
 
                                     isCheckingParentUpdate = false
                                     parentUpdateInfo = null
-                                    parentUpdateStatusMsg = "Parent App is up to date (v$parentVersionName)!"
+                                    parentUpdateStatusMsg = strings.appUpToDateMsg
                                 }
                             },
                             enabled = !isCheckingParentUpdate,
@@ -514,7 +533,7 @@ fun ParentDashboardScreen(
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
-                            Text("Check Update", fontSize = 13.sp)
+                            Text(strings.checkUpdate, fontSize = 13.sp)
                         }
 
                         OutlinedButton(
@@ -525,7 +544,7 @@ fun ParentDashboardScreen(
                         ) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Update Child", fontSize = 13.sp)
+                            Text(strings.updateChild, fontSize = 13.sp)
                         }
                     }
 
@@ -535,8 +554,9 @@ fun ParentDashboardScreen(
                             parentUpdateInfo = com.parentalcontrol.core.updater.UpdateInfo(
                                 versionCode = 2,
                                 versionName = "1.1",
-                                apkUrl = "https://github.com/parental-control/safeshield/releases/download/v1.1/Parent_SafeShield.apk",
-                                changelog = "🚀 SafeShield v1.1 Update:\n• Ultra-fast instant lock sync\n• Battery-saver resilience\n• Enhanced Slate Dark Theme UI\n• New lock duration timers (15m - 8h)"
+                                apkUrl = "https://github.com/kktai-nph/GuardCore/releases/download/v1.1/Parent_SafeShield.apk",
+                                changelog = if (currentLang == AppLanguage.KM) "🚀 ការអាប់ដេត SafeShield v1.1:\n• មុខងារចាក់សោរហ័សទាន់ចិត្ត\n• រក្សាដំណើរការ background ជាប់ជានិច្ច\n• ផ្ទាំងរូបរាង Dark Slate ថ្មីស្រឡាង\n• រយៈពេលចាក់សោថ្មី (១៥នាទី ដល់ ៨ម៉ោង)"
+                                else "🚀 SafeShield v1.1 Update:\n• Ultra-fast instant lock sync\n• Battery-saver resilience\n• Enhanced Slate Dark Theme UI\n• New lock duration timers (15m - 8h)"
                             )
                             showUpdatePopupDialog = true
                         },
@@ -544,7 +564,7 @@ fun ParentDashboardScreen(
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF38BDF8))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Preview Update Popup (Test)", fontSize = 12.sp, color = Color(0xFF38BDF8))
+                        Text(strings.previewUpdatePopup, fontSize = 12.sp, color = Color(0xFF38BDF8))
                     }
 
                     parentUpdateStatusMsg?.let { msg ->
@@ -559,7 +579,7 @@ fun ParentDashboardScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = "Update Available: v${info.versionName}",
+                                    text = strings.newUpdateFoundMsg.format(info.versionName),
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF38BDF8)
                                 )
@@ -572,7 +592,7 @@ fun ParentDashboardScreen(
                                         progress = { prog / 100f },
                                         modifier = Modifier.fillMaxWidth().height(6.dp)
                                     )
-                                    Text("Downloading: $prog%", fontSize = 12.sp, color = Color.White)
+                                    Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, color = Color.White)
                                 }
 
                                 Button(
@@ -586,14 +606,14 @@ fun ParentDashboardScreen(
                                                 val file = dl.getOrThrow()
                                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                             } else {
-                                                parentUpdateStatusMsg = "Download failed: ${dl.exceptionOrNull()?.message}"
+                                                parentUpdateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
                                             }
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = parentDownloadProgress == null
                                 ) {
-                                    Text("Download & Install Parent App Now")
+                                    Text(strings.downloadInstallNow)
                                 }
                             }
                         }
@@ -607,16 +627,16 @@ fun ParentDashboardScreen(
     if (showLockDurationDialog) {
         AlertDialog(
             onDismissRequest = { showLockDurationDialog = false },
-            title = { Text("Choose Lock Duration") },
+            title = { Text(strings.chooseLockDuration) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
-                        "15 Minutes" to 15 * 60,
-                        "30 Minutes" to 30 * 60,
-                        "1 Hour" to 60 * 60,
-                        "2 Hours" to 120 * 60,
-                        "4 Hours" to 240 * 60,
-                        "Until Morning (8 Hours)" to 8 * 3600
+                        strings.lock15m to 15 * 60,
+                        strings.lock30m to 30 * 60,
+                        strings.lock1h to 60 * 60,
+                        strings.lock2h to 120 * 60,
+                        strings.lock4h to 240 * 60,
+                        strings.lock8h to 8 * 3600
                     ).forEach { (label, secs) ->
                         Button(
                             onClick = {
@@ -641,7 +661,7 @@ fun ParentDashboardScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showLockDurationDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showLockDurationDialog = false }) { Text(strings.cancel) }
             }
         )
     }
@@ -650,7 +670,7 @@ fun ParentDashboardScreen(
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
-            title = { Text("Telegram Transport Config") },
+            title = { Text(strings.telegramConfigTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -659,7 +679,7 @@ fun ParentDashboardScreen(
                             botToken = it
                             ParentEngineHolder.saveTelegramBotToken(context, it)
                         },
-                        label = { Text("Telegram Bot Token") },
+                        label = { Text(strings.botTokenLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -669,7 +689,7 @@ fun ParentDashboardScreen(
                             chatId = it
                             ParentEngineHolder.saveTelegramChatId(context, it)
                         },
-                        label = { Text("Telegram Chat ID") },
+                        label = { Text(strings.chatIdLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -677,7 +697,7 @@ fun ParentDashboardScreen(
             },
             confirmButton = {
                 Button(onClick = { showSettingsDialog = false }) {
-                    Text("Save & Close")
+                    Text(strings.saveAndClose)
                 }
             }
         )
@@ -691,27 +711,27 @@ fun ParentDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { showAddScheduleDialog = false },
-            title = { Text("Add Bedtime Schedule") },
+            title = { Text(strings.addScheduleTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = schedName,
                         onValueChange = { schedName = it },
-                        label = { Text("Schedule Name") },
+                        label = { Text(strings.scheduleNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = startTime,
                         onValueChange = { startTime = it },
-                        label = { Text("Start Time (24h e.g. 21:30)") },
+                        label = { Text(strings.startTimeLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = endTime,
                         onValueChange = { endTime = it },
-                        label = { Text("End Time (24h e.g. 06:00)") },
+                        label = { Text(strings.endTimeLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -734,11 +754,11 @@ fun ParentDashboardScreen(
                     sendCommand(action.toString(), "Set $schedName Schedule")
                     showAddScheduleDialog = false
                 }) {
-                    Text("Send Policy")
+                    Text(strings.sendPolicy)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddScheduleDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showAddScheduleDialog = false }) { Text(strings.cancel) }
             }
         )
     }
@@ -752,27 +772,27 @@ fun ParentDashboardScreen(
 
         AlertDialog(
             onDismissRequest = { showAddAppLimitDialog = false },
-            title = { Text("Add App Limit / Block") },
+            title = { Text(strings.addAppLimitTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = pkgName,
                         onValueChange = { pkgName = it },
-                        label = { Text("Package Name") },
+                        label = { Text(strings.packageNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = appName,
                         onValueChange = { appName = it },
-                        label = { Text("App Name") },
+                        label = { Text(strings.appNameLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = limitMins,
                         onValueChange = { limitMins = it },
-                        label = { Text("Daily Limit (Minutes)") },
+                        label = { Text(strings.dailyLimitLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -781,7 +801,7 @@ fun ParentDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Block Completely")
+                        Text(strings.blockCompletely)
                         Switch(checked = isBlocked, onCheckedChange = { isBlocked = it })
                     }
                 }
@@ -801,41 +821,41 @@ fun ParentDashboardScreen(
                     sendCommand(action.toString(), "Set Limit for $appName")
                     showAddAppLimitDialog = false
                 }) {
-                    Text("Send Limit")
+                    Text(strings.sendLimit)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddAppLimitDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showAddAppLimitDialog = false }) { Text(strings.cancel) }
             }
         )
     }
 
     // Push Child Remote Update Dialog
     if (showSendChildUpdateDialog) {
-        var childApkUrl by remember { mutableStateOf("https://example.com/Child_SafeShield_v2.apk") }
+        var childApkUrl by remember { mutableStateOf("https://github.com/kktai-nph/GuardCore/releases/download/v1.1/Child_SafeShield.apk") }
         var newVersionCode by remember { mutableStateOf("2") }
 
         AlertDialog(
             onDismissRequest = { showSendChildUpdateDialog = false },
-            title = { Text("Push Remote Update to Child") },
+            title = { Text(strings.pushChildUpdateTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "The child phone will download and install the new APK (silent install if Device Owner is active).",
+                        text = strings.pushChildUpdateDesc,
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8)
                     )
                     OutlinedTextField(
                         value = childApkUrl,
                         onValueChange = { childApkUrl = it },
-                        label = { Text("Child APK Download Direct URL") },
+                        label = { Text(strings.childApkUrlLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = newVersionCode,
                         onValueChange = { newVersionCode = it },
-                        label = { Text("Target Version Code") },
+                        label = { Text(strings.targetVersionCodeLabel) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -854,11 +874,11 @@ fun ParentDashboardScreen(
                     sendCommand(action.toString(), "Remote Update Command")
                     showSendChildUpdateDialog = false
                 }) {
-                    Text("Push Direct Command")
+                    Text(strings.pushCommand)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSendChildUpdateDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showSendChildUpdateDialog = false }) { Text(strings.cancel) }
             }
         )
     }
@@ -872,7 +892,7 @@ fun ParentDashboardScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("New Update Available!", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(strings.newUpdateFoundMsg.format(info.versionName), fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             },
             text = {
@@ -889,11 +909,11 @@ fun ParentDashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("SafeShield v${info.versionName}", fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
-                            Text("Build ${info.versionCode}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                            Text("${strings.build} ${info.versionCode}", color = Color(0xFF94A3B8), fontSize = 12.sp)
                         }
                     }
 
-                    Text("What's New in this Version:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                    Text(strings.whatsNew, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
                     Text(
                         text = info.changelog.ifBlank { "• Performance optimizations and security enhancements\n• Minor UI adjustments" },
                         fontSize = 13.sp,
@@ -907,7 +927,7 @@ fun ParentDashboardScreen(
                             modifier = Modifier.fillMaxWidth().height(8.dp),
                             color = Color(0xFF38BDF8)
                         )
-                        Text("Downloading update: $prog%", fontSize = 12.sp, color = Color(0xFF38BDF8))
+                        Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, color = Color(0xFF38BDF8))
                     }
                 }
             },
@@ -923,7 +943,7 @@ fun ParentDashboardScreen(
                                 val file = dl.getOrThrow()
                                 com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                             } else {
-                                parentUpdateStatusMsg = "Download failed: ${dl.exceptionOrNull()?.message}"
+                                parentUpdateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
                             }
                         }
                     },
@@ -931,14 +951,82 @@ fun ParentDashboardScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Download & Install Now")
+                    Text(strings.downloadInstallNow)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showUpdatePopupDialog = false }) {
-                    Text("Remind Me Later")
+                    Text(strings.remindLater)
                 }
             }
         )
+    }
+}
+
+/**
+ * Modern Segmented Language Slider / Pill Toggle (🇬🇧 EN / 🇰🇭 ខ្មែរ)
+ */
+@Composable
+fun LanguageSlider(
+    currentLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isKhmer = currentLanguage == AppLanguage.KM
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF1E293B),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        modifier = modifier.height(34.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // English Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (!isKhmer) Color(0xFF0284C7) else Color.Transparent)
+                    .clickable { onLanguageChange(AppLanguage.EN) }
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🇬🇧", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "EN",
+                        fontSize = 11.sp,
+                        fontWeight = if (!isKhmer) FontWeight.Bold else FontWeight.Medium,
+                        color = if (!isKhmer) Color.White else Color(0xFF94A3B8)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(2.dp))
+
+            // Khmer Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isKhmer) Color(0xFF0284C7) else Color.Transparent)
+                    .clickable { onLanguageChange(AppLanguage.KM) }
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🇰🇭", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "ខ្មែរ",
+                        fontSize = 11.sp,
+                        fontWeight = if (isKhmer) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isKhmer) Color.White else Color(0xFF94A3B8)
+                    )
+                }
+            }
+        }
     }
 }

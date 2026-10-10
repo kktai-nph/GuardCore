@@ -12,8 +12,10 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +38,9 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.parentalcontrol.child.engine.ChildEngineHolder
 import com.parentalcontrol.child.receiver.AdminReceiver
 import com.parentalcontrol.child.service.TelegramPollingService
+import com.parentalcontrol.core.localization.AppLanguage
+import com.parentalcontrol.core.localization.LanguageManager
+import com.parentalcontrol.core.localization.Localization
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -109,6 +114,9 @@ fun ChildDashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val engine = remember { ChildEngineHolder.getEngine(context) }
 
+    var currentLang by remember { mutableStateOf(LanguageManager.getSavedLanguage(context)) }
+    val strings = remember(currentLang) { Localization.getStrings(currentLang) }
+
     var botToken by remember { mutableStateOf(ChildEngineHolder.getTelegramBotToken(context)) }
     var chatId by remember { mutableStateOf(ChildEngineHolder.getTelegramChatId(context)) }
     var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -140,6 +148,32 @@ fun ChildDashboardScreen(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Top Language Switcher Bar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = Color(0xFF2DD4BF),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("SafeShield Child", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+            }
+
+            ChildLanguageSlider(
+                currentLanguage = currentLang,
+                onLanguageChange = { newLang ->
+                    currentLang = newLang
+                    LanguageManager.setSavedLanguage(context, newLang)
+                }
+            )
+        }
+
         // Hero Header Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -166,13 +200,13 @@ fun ChildDashboardScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "SafeShield Child",
+                    text = strings.appTitleChild,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
-                    text = "Guard Core • Sovereign Protection",
+                    text = strings.appSubtitleChild,
                     fontSize = 13.sp,
                     color = Color(0xFF94A3B8)
                 )
@@ -194,7 +228,7 @@ fun ChildDashboardScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Protection Service Active",
+                            text = strings.protectionActive,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF6EE7B7)
@@ -212,13 +246,13 @@ fun ChildDashboardScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Device Pairing",
+                    text = strings.devicePairing,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
-                    text = "Scan this QR code from Parent App to establish trusted cryptographic keys.",
+                    text = strings.scanQrDesc,
                     fontSize = 13.sp,
                     color = Color(0xFF94A3B8)
                 )
@@ -238,7 +272,7 @@ fun ChildDashboardScreen(
                 ) {
                     Icon(imageVector = Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Show Pairing QR Code", fontWeight = FontWeight.SemiBold)
+                    Text(strings.showPairingQr, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -251,38 +285,42 @@ fun ChildDashboardScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Protection Permissions",
+                    text = strings.protectionPermissions,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
 
                 CleanPermissionRow(
-                    title = "Device Administrator",
-                    description = "Anti-uninstall & instant lock",
+                    title = strings.deviceAdmin,
+                    description = strings.deviceAdminDesc,
                     isGranted = isAdminActive,
-                    onRequest = onEnableAdmin
+                    onRequest = onEnableAdmin,
+                    enableLabel = strings.enable
                 )
 
                 CleanPermissionRow(
-                    title = "Accessibility Monitoring",
-                    description = "Enforce daily app quotas",
+                    title = strings.accessibility,
+                    description = strings.accessibilityDesc,
                     isGranted = false,
-                    onRequest = onEnableAccessibility
+                    onRequest = onEnableAccessibility,
+                    enableLabel = strings.enable
                 )
 
                 CleanPermissionRow(
-                    title = "Display Over Other Apps",
-                    description = "Fullscreen lock screen overlay",
+                    title = strings.overlay,
+                    description = strings.overlayDesc,
                     isGranted = isOverlayAllowed,
-                    onRequest = onEnableOverlay
+                    onRequest = onEnableOverlay,
+                    enableLabel = strings.enable
                 )
 
                 CleanPermissionRow(
-                    title = "Ignore Battery Optimizations",
-                    description = "Keep background listener alive",
+                    title = strings.batteryOptimization,
+                    description = strings.batteryOptimizationDesc,
                     isGranted = isBatteryExempt,
-                    onRequest = onEnableBatteryExemption
+                    onRequest = onEnableBatteryExemption,
+                    enableLabel = strings.enable
                 )
             }
         }
@@ -295,7 +333,7 @@ fun ChildDashboardScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Transport Relay Configuration",
+                    text = strings.relayConfig,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -307,7 +345,7 @@ fun ChildDashboardScreen(
                         botToken = it
                         ChildEngineHolder.saveTelegramBotToken(context, it)
                     },
-                    label = { Text("Telegram Bot Token") },
+                    label = { Text(strings.botTokenLabel) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -318,7 +356,7 @@ fun ChildDashboardScreen(
                         chatId = it
                         ChildEngineHolder.saveTelegramChatId(context, it)
                     },
-                    label = { Text("Telegram Chat ID / Group ID") },
+                    label = { Text(strings.chatIdLabel) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -339,13 +377,13 @@ fun ChildDashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Guard Core • OTA Updater",
+                            text = strings.autoUpdateTitle,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = "Version $currentVersionName (Build $currentVersionCode)",
+                            text = "${strings.version} $currentVersionName (${strings.build} $currentVersionCode)",
                             fontSize = 12.sp,
                             color = Color(0xFF94A3B8)
                         )
@@ -354,7 +392,7 @@ fun ChildDashboardScreen(
                     Button(
                         onClick = {
                             isCheckingUpdate = true
-                            updateStatusMsg = "Checking GitHub & Telegram for updates..."
+                            updateStatusMsg = strings.checkingUpdateMsg
                             coroutineScope.launch {
                                 // 1. Check GitHub Releases
                                 val ghResult = com.parentalcontrol.core.updater.AutoUpdateManager.checkUpdateFromGitHub("kktai-nph", "GuardCore", isChildApp = true)
@@ -362,7 +400,7 @@ fun ChildDashboardScreen(
                                     val info = ghResult.getOrNull()!!
                                     if (info.versionCode > currentVersionCode) {
                                         updateInfo = info
-                                        updateStatusMsg = "New version v${info.versionName} found on GitHub!"
+                                        updateStatusMsg = strings.newUpdateFoundMsg.format(info.versionName)
                                         isCheckingUpdate = false
                                         return@launch
                                     }
@@ -375,7 +413,7 @@ fun ChildDashboardScreen(
                                         val info = tgResult.getOrNull()!!
                                         if (info.versionCode > currentVersionCode) {
                                             updateInfo = info
-                                            updateStatusMsg = "New version v${info.versionName} found on Telegram!"
+                                            updateStatusMsg = strings.newUpdateFoundMsg.format(info.versionName)
                                             isCheckingUpdate = false
                                             return@launch
                                         }
@@ -384,7 +422,7 @@ fun ChildDashboardScreen(
 
                                 isCheckingUpdate = false
                                 updateInfo = null
-                                updateStatusMsg = "App is up to date (v$currentVersionName)!"
+                                updateStatusMsg = strings.appUpToDateMsg
                             }
                         },
                         enabled = !isCheckingUpdate,
@@ -395,7 +433,7 @@ fun ChildDashboardScreen(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Text("Check Update", fontSize = 13.sp)
+                        Text(strings.checkUpdate, fontSize = 13.sp)
                     }
                 }
 
@@ -411,7 +449,7 @@ fun ChildDashboardScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Update Available: v${info.versionName}",
+                                text = strings.newUpdateFoundMsg.format(info.versionName),
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF2DD4BF)
                             )
@@ -424,7 +462,7 @@ fun ChildDashboardScreen(
                                     progress = { prog / 100f },
                                     modifier = Modifier.fillMaxWidth().height(6.dp)
                                 )
-                                Text("Downloading: $prog%", fontSize = 12.sp, color = Color.White)
+                                Text(strings.downloadingProgress.format(prog), fontSize = 12.sp, color = Color.White)
                             }
 
                             Button(
@@ -438,14 +476,14 @@ fun ChildDashboardScreen(
                                             val file = dl.getOrThrow()
                                             com.parentalcontrol.core.updater.AutoUpdateManager.installApk(context, file)
                                         } else {
-                                            updateStatusMsg = "Download failed: ${dl.exceptionOrNull()?.message}"
+                                            updateStatusMsg = strings.updateFailed.format(dl.exceptionOrNull()?.message)
                                         }
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = downloadProgress == null
                             ) {
-                                Text("Download & Install Now")
+                                Text(strings.downloadInstallNow)
                             }
                         }
                     }
@@ -459,10 +497,10 @@ fun ChildDashboardScreen(
             onDismissRequest = { showQrDialog = false },
             confirmButton = {
                 Button(onClick = { showQrDialog = false }) {
-                    Text("Close")
+                    Text(strings.close)
                 }
             },
-            title = { Text("Scan Pairing QR") },
+            title = { Text(strings.scanPairingQrTitle) },
             text = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -487,7 +525,8 @@ fun CleanPermissionRow(
     title: String,
     description: String,
     isGranted: Boolean,
-    onRequest: () -> Unit
+    onRequest: () -> Unit,
+    enableLabel: String = "Enable"
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -518,7 +557,75 @@ fun CleanPermissionRow(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155))
             ) {
-                Text("Enable", fontSize = 12.sp)
+                Text(enableLabel, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+/**
+ * Modern Segmented Language Slider / Pill Toggle for Child App (🇬🇧 EN / 🇰🇭 ខ្មែរ)
+ */
+@Composable
+fun ChildLanguageSlider(
+    currentLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isKhmer = currentLanguage == AppLanguage.KM
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF1E293B),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        modifier = modifier.height(34.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // English Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (!isKhmer) Color(0xFF0F766E) else Color.Transparent)
+                    .clickable { onLanguageChange(AppLanguage.EN) }
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🇬🇧", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "EN",
+                        fontSize = 11.sp,
+                        fontWeight = if (!isKhmer) FontWeight.Bold else FontWeight.Medium,
+                        color = if (!isKhmer) Color.White else Color(0xFF94A3B8)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(2.dp))
+
+            // Khmer Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isKhmer) Color(0xFF0F766E) else Color.Transparent)
+                    .clickable { onLanguageChange(AppLanguage.KM) }
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🇰🇭", fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "ខ្មែរ",
+                        fontSize = 11.sp,
+                        fontWeight = if (isKhmer) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isKhmer) Color.White else Color(0xFF94A3B8)
+                    )
+                }
             }
         }
     }
